@@ -32,16 +32,16 @@ html {
   -ms-content-zooming: none;
   -ms-touch-action: pan-x pan-y;
   touch-action: pan-x pan-y;
+  overflow: hidden;
 }
 body {
   margin: 0;
   width: 100dvw;
   height: 100dvh;
+  overflow: hidden;
 }
 img {
   -webkit-user-drag: none;
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
   image-rendering: high-quality;
 }
 span {
