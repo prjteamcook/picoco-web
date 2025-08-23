@@ -59,6 +59,74 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, [today]);
 
+  useEffect(() => {
+    // Handle messages from React Native
+    const handleMessage = async (event: MessageEvent) => {
+      if (event.data && typeof event.data === 'string') {
+        try {
+          // Assume the message is an image URL
+          const imageUrl = event.data;
+          
+          // Fetch the image from the URL
+          const response = await fetch(imageUrl);
+          const blob = await response.blob();
+          
+          // Convert blob to base64 for upload
+          const reader = new FileReader();
+          reader.onload = async (e) => {
+            const imageData = e.target?.result as string;
+            
+            if (imageData) {
+              try {
+                const uploadResponse = await fetch('/api/image', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    imageData: imageData
+                  })
+                });
+                
+                if (!uploadResponse.ok) {
+                  throw new Error(`Server responded with ${uploadResponse.status}`);
+                }
+                
+                const result = await uploadResponse.json();
+                
+                if (result.success && result.sessionId) {
+                  const learnUrl = `/learn?session=${result.sessionId}`;
+                  window.location.href = learnUrl;
+                } else {
+                  throw new Error(result.error || 'Upload failed');
+                }
+                
+              } catch (error) {
+                console.error('Failed to upload image from RN:', error);
+                alert('이미지 업로드에 실패했습니다.');
+              }
+            }
+          };
+          
+          reader.onerror = () => {
+            console.error('Failed to read blob');
+          };
+          
+          reader.readAsDataURL(blob);
+          
+        } catch (error) {
+          console.error('Failed to process message from RN:', error);
+        }
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
+  }, []);
+
   const handleDateClick = (date: number) => {
     setSelectedDate(date);
     if (scrollContainerRef.current) {
