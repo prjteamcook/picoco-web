@@ -221,7 +221,7 @@ export default function Home() {
                       console.error('Failed to upload image:', error);
                       
                       // 원본이 너무 크면 압축 버전으로 fallback
-                      if (error.message.includes('413') || error.message.includes('431')) {
+                      if ((error as Error).message?.includes('413') || (error as Error).message?.includes('431')) {
                         console.log('Original image too large, trying compressed version...');
                         
                         // 최소한의 압축만 적용

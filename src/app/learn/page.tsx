@@ -200,7 +200,6 @@ export default function LearnPage() {
               src={backgroundImage}
               alt="Background"
               className="w-full h-full object-cover"
-              style={{ imageRendering: 'high-quality' }}
               onError={(e) => {
                 // Try to reload from localStorage as fallback
                 const uploadedImage = localStorage.getItem('uploadedImage');
