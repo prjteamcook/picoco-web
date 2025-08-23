@@ -76,33 +76,89 @@ export default function Home() {
             console.log('📱 Received base64 object from RN');
             imageData = `data:image/jpeg;base64,${event.data.base64}`;
           }
-          // Handle string URLs (fallback)
+          // Handle local file paths or URLs
           else if (typeof event.data === 'string') {
-            console.log('📱 Received URL from RN:', event.data);
-            // For any URL, just store it and let the learn page handle it
-            const uploadResponse = await fetch('/api/image', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                imageUrl: event.data
-              })
-            });
+            const filePath = event.data;
+            console.log('📱 Received path/URL from RN:', filePath);
             
-            if (!uploadResponse.ok) {
-              throw new Error(`Server responded with ${uploadResponse.status}`);
-            }
-            
-            const result = await uploadResponse.json();
-            
-            if (result.success && result.sessionId) {
-              const learnUrl = `/learn?session=${result.sessionId}`;
-              window.location.href = learnUrl;
+            // Check if it's a local file path (starts with / or contains file path patterns)
+            if (filePath.startsWith('/') || filePath.includes('/Users/') || filePath.includes('/Downloads/')) {
+              try {
+                console.log('📱 Converting local file path to base64...');
+                // Convert file path to file:// URL for fetch
+                const fileUrl = filePath.startsWith('file://') ? filePath : `file://${filePath}`;
+                const response = await fetch(fileUrl);
+                const blob = await response.blob();
+                
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                  const base64Data = e.target?.result as string;
+                  console.log('📱 Converted local file to base64, size:', base64Data.length);
+                  
+                  // Store base64 data
+                  const uploadResponse = await fetch('/api/image', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      imageData: base64Data
+                    })
+                  });
+                  
+                  if (!uploadResponse.ok) {
+                    throw new Error(`Server responded with ${uploadResponse.status}`);
+                  }
+                  
+                  const result = await uploadResponse.json();
+                  
+                  if (result.success && result.sessionId) {
+                    const learnUrl = `/learn?session=${result.sessionId}`;
+                    window.location.href = learnUrl;
+                  } else {
+                    throw new Error(result.error || 'Upload failed');
+                  }
+                };
+                
+                reader.onerror = () => {
+                  console.error('Failed to read file blob');
+                  alert('파일을 읽을 수 없습니다.');
+                };
+                
+                reader.readAsDataURL(blob);
+                return;
+                
+              } catch (fetchError) {
+                console.error('Failed to fetch local file:', fetchError);
+                alert('로컬 파일에 접근할 수 없습니다.');
+                return;
+              }
             } else {
-              throw new Error(result.error || 'Upload failed');
+              // For http/https URLs, store URL directly
+              const uploadResponse = await fetch('/api/image', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  imageUrl: filePath
+                })
+              });
+              
+              if (!uploadResponse.ok) {
+                throw new Error(`Server responded with ${uploadResponse.status}`);
+              }
+              
+              const result = await uploadResponse.json();
+              
+              if (result.success && result.sessionId) {
+                const learnUrl = `/learn?session=${result.sessionId}`;
+                window.location.href = learnUrl;
+              } else {
+                throw new Error(result.error || 'Upload failed');
+              }
+              return;
             }
-            return;
           } 
           else {
             throw new Error('Unsupported data format from RN');

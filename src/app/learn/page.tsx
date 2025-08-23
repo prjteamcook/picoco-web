@@ -217,28 +217,25 @@ export default function LearnPage() {
               alt="Background"
               className="w-full h-full object-cover"
               onError={(e) => {
+                console.error('Image failed to load:', backgroundImage?.substring(0, 100));
                 // Try to reload from localStorage as fallback
                 const uploadedImage = localStorage.getItem('uploadedImage');
                 if (uploadedImage && uploadedImage !== backgroundImage) {
+                  console.log('Trying fallback image from localStorage');
                   setBackgroundImage(uploadedImage);
                 } else {
+                  console.log('No fallback available, hiding image');
                   e.currentTarget.style.display = 'none';
                 }
+              }}
+              onLoad={() => {
+                console.log('Image loaded successfully');
               }}
             />
             {/* No global overlay - let the image show clearly */}
           </>
         )}
         
-        {/* Debug info */}
-        {isClient && (
-          <div className="absolute top-20 left-5 z-30 bg-black bg-opacity-70 text-white p-2 rounded text-xs max-w-[90%]">
-            <div>Background Image: {backgroundImage ? backgroundImage.substring(0, 50) + '...' : 'null'}</div>
-            <div>Is Data URL: {backgroundImage?.startsWith('data:') ? 'Yes' : 'No'}</div>
-            <div>Is File URL: {backgroundImage?.startsWith('file://') ? 'Yes' : 'No'}</div>
-            <div>Is HTTP URL: {backgroundImage?.startsWith('http') ? 'Yes' : 'No'}</div>
-          </div>
-        )}
         
         {/* Error message if no image is loaded */}
         {isClient && (!backgroundImage || (!backgroundImage.startsWith('data:') && !backgroundImage.startsWith('http://') && !backgroundImage.startsWith('https://') && !backgroundImage.startsWith('file://'))) && (
