@@ -151,7 +151,18 @@ export default function Home() {
           <div className="relative transform -rotate-3">
             <button 
               type="button"
-              onClick={() => document.getElementById('camera-input')?.click()}
+              onClick={() => {
+                if (window.goCamera) {
+                  try {
+                    window.goCamera();
+                  } catch (error) {
+                    console.error('goCamera failed:', error);
+                    document.getElementById('camera-input')?.click();
+                  }
+                } else {
+                  document.getElementById('camera-input')?.click();
+                }
+              }}
               className="w-full aspect-[3/4] border-2 border-dashed border-gray-500 rounded-2xl flex items-center justify-center hover:border-gray-400 transition-colors bg-[#313131]"
               aria-label="Add new photo"
             >
@@ -291,13 +302,20 @@ export default function Home() {
               }
             }}
           />
-          <label 
-            htmlFor="camera-input" 
+          <button 
+            type="button"
             className="w-20 h-20 flex items-center justify-center cursor-pointer" 
             aria-label="Take photo"
             onClick={() => {
               if (window.goCamera) {
-                window.goCamera();
+                try {
+                  window.goCamera();
+                } catch (error) {
+                  console.error('goCamera failed:', error);
+                  document.getElementById('camera-input')?.click();
+                }
+              } else {
+                document.getElementById('camera-input')?.click();
               }
             }}
           >
@@ -306,7 +324,7 @@ export default function Home() {
               alt="Camera" 
               className="w-20 h-20"
             />
-          </label>
+          </button>
         </div>
         
         {/* Favorite Button - positioned to the right */}
