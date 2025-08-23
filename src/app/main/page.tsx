@@ -62,68 +62,31 @@ export default function Home() {
   useEffect(() => {
     // Handle messages from React Native
     const handleMessage = async (event: MessageEvent) => {
-      if (event.data && typeof event.data === 'string') {
+      if (event.data) {
         try {
-          const imageUrl = event.data;
-          console.log('📱 Received image URL from RN:', imageUrl);
+          let imageData: string;
           
-          // For file:// URLs, we need to fetch and convert to base64
-          if (imageUrl.startsWith('file://')) {
-            try {
-              console.log('📱 Converting file:// URL to base64...');
-              const response = await fetch(imageUrl);
-              const blob = await response.blob();
-              
-              const reader = new FileReader();
-              reader.onload = async (e) => {
-                const imageData = e.target?.result as string;
-                console.log('📱 Converted to base64, size:', imageData.length);
-                
-                // Store base64 data instead of file URL
-                const uploadResponse = await fetch('/api/image', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    imageData: imageData
-                  })
-                });
-                
-                if (!uploadResponse.ok) {
-                  throw new Error(`Server responded with ${uploadResponse.status}`);
-                }
-                
-                const result = await uploadResponse.json();
-                
-                if (result.success && result.sessionId) {
-                  const learnUrl = `/learn?session=${result.sessionId}`;
-                  window.location.href = learnUrl;
-                } else {
-                  throw new Error(result.error || 'Upload failed');
-                }
-              };
-              
-              reader.onerror = () => {
-                console.error('Failed to read blob');
-                alert('이미지 파일을 읽을 수 없습니다.');
-              };
-              
-              reader.readAsDataURL(blob);
-              
-            } catch (fetchError) {
-              console.error('Failed to fetch file:// URL:', fetchError);
-              alert('이미지 파일에 접근할 수 없습니다.');
-            }
-          } else {
-            // For http/https URLs, store URL directly
+          // Check if data is already base64 (data:image/...)
+          if (typeof event.data === 'string' && event.data.startsWith('data:image/')) {
+            console.log('📱 Received base64 image from RN');
+            imageData = event.data;
+          } 
+          // Check if data is an object with base64 data
+          else if (typeof event.data === 'object' && event.data.base64) {
+            console.log('📱 Received base64 object from RN');
+            imageData = `data:image/jpeg;base64,${event.data.base64}`;
+          }
+          // Handle string URLs (fallback)
+          else if (typeof event.data === 'string') {
+            console.log('📱 Received URL from RN:', event.data);
+            // For any URL, just store it and let the learn page handle it
             const uploadResponse = await fetch('/api/image', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                imageUrl: imageUrl
+                imageUrl: event.data
               })
             });
             
@@ -139,6 +102,34 @@ export default function Home() {
             } else {
               throw new Error(result.error || 'Upload failed');
             }
+            return;
+          } 
+          else {
+            throw new Error('Unsupported data format from RN');
+          }
+          
+          // Store base64 data
+          const uploadResponse = await fetch('/api/image', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              imageData: imageData
+            })
+          });
+          
+          if (!uploadResponse.ok) {
+            throw new Error(`Server responded with ${uploadResponse.status}`);
+          }
+          
+          const result = await uploadResponse.json();
+          
+          if (result.success && result.sessionId) {
+            const learnUrl = `/learn?session=${result.sessionId}`;
+            window.location.href = learnUrl;
+          } else {
+            throw new Error(result.error || 'Upload failed');
           }
           
         } catch (error) {
