@@ -6,24 +6,32 @@ export default function LearnPage() {
   const [selectedTab, setSelectedTab] = useState('Voca');
   const [selectedVoca, setSelectedVoca] = useState('');
   const [isBottomSheetExpanded, setIsBottomSheetExpanded] = useState(false);
+  const [isAnalysisExpanded, setIsAnalysisExpanded] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartY, setDragStartY] = useState(0);
   const [currentTranslateY, setCurrentTranslateY] = useState(0);
+  const [starredWords, setStarredWords] = useState<string[]>([]);
   const sheetRef = useRef<HTMLDivElement>(null);
   
   const tabs = ['Voca', 'Pharase', 'Dialogue'];
   
   const vocaWords = [
-    { word: 'lamp', starred: false },
-    { word: '노트북', starred: false },
-    { word: 'tote bag', starred: true },
-    { word: 'hoodie', starred: false },
-    { word: 'projector', starred: false }
+    { word: 'lamp' },
+    { word: '노트북' },
+    { word: 'tote bag' },
+    { word: 'hoodie' },
+    { word: 'projector' }
   ];
 
-  const expandBottomSheet = () => {
-    setIsBottomSheetExpanded(true);
+  const toggleStar = (word: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setStarredWords(prev => 
+      prev.includes(word) 
+        ? prev.filter(w => w !== word)
+        : [...prev, word]
+    );
   };
+
 
   const handleDragStart = (clientY: number) => {
     setIsDragging(true);
@@ -87,11 +95,12 @@ export default function LearnPage() {
     <div className="min-h-screen bg-[#191919] text-white relative max-w-[600px] mx-auto overflow-hidden">
       {/* Header */}
       <div className="absolute top-12 left-5 z-20">
-        <button type="button" className="w-8 h-8 flex items-center justify-center text-white" aria-label="Home">
-          <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-            <title>Home</title>
-            <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
-          </svg>
+        <button type="button" className="w-10 h-10 flex items-center justify-center text-white" aria-label="Home">
+          <img 
+            src="/assets/home.svg" 
+            alt="Home" 
+            className="w-10 h-10"
+          />
         </button>
       </div>
 
@@ -134,29 +143,38 @@ export default function LearnPage() {
         {/* Analysis Section - Always visible */}
         <div className="px-5 pb-4">
           <div className="flex items-start gap-2">
-            <span className="text-yellow-400 text-lg">✨</span>
+            <img 
+              src="/assets/shine.svg" 
+              alt="Shine" 
+              className="w-6 h-6"
+            />
             <div>
               <button
                 type="button"
-                onClick={expandBottomSheet}
-                className="flex items-center gap-1 text-white font-medium mb-1 hover:text-gray-300 transition-colors"
+                onClick={() => setIsAnalysisExpanded(!isAnalysisExpanded)}
+                className="flex items-center gap-1 text-white font-bold mb-1 hover:text-gray-300 transition-colors"
               >
                 Analysis
-                <svg 
-                  viewBox="0 0 24 24" 
-                  className={`w-4 h-4 transition-transform ${isBottomSheetExpanded ? 'rotate-180' : ''}`}
-                  fill="currentColor"
-                >
-                  <title>Expand</title>
-                  <path d="M7 14l5-5 5 5z"/>
-                </svg>
+                <img 
+                  src={isAnalysisExpanded ? "/assets/down.svg" : "/assets/up.svg"}
+                  alt={isAnalysisExpanded ? "Close" : "Open"}
+                  className="w-4 h-4"
+                />
               </button>
-              <p className="text-white text-sm leading-relaxed">
-                The scene of a hackathon taking place in a large space with many participants.
-              </p>
-              <p className="text-white text-sm mt-2">
-                큰 공간에서 다수의 인원이 해커톤 대회를 진행하는 모습
-              </p>
+              {isAnalysisExpanded && (
+                <div>
+                  <p className="text-white text-sm leading-relaxed">
+                    The scene of a hackathon taking place in a large space with many participants.
+                  </p>
+                  <div 
+                    className="w-full h-[0.5px] my-2" 
+                    style={{ backgroundColor: 'rgba(255, 255, 255, 0.3)' }}
+                  ></div>
+                  <p className="text-white text-sm">
+                    큰 공간에서 다수의 인원이 해커톤 대회를 진행하는 모습
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -170,13 +188,19 @@ export default function LearnPage() {
                 key={tab}
                 type="button"
                 onClick={() => setSelectedTab(tab)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                className={`relative min-w-8 max-h-8 min-h-8 px-3 py-1.5 rounded-md inline-flex justify-center items-center gap-1 overflow-hidden transition-all ${
                   selectedTab === tab
                     ? 'bg-white text-black'
-                    : 'text-gray-400 hover:text-white'
+                    : 'text-[#F4F4F4] hover:text-white hover:bg-gray-700'
                 }`}
+                style={{
+                  backgroundColor: selectedTab === tab ? 'white' : '#1F1F21'
+                }}
               >
-                {tab}
+                <div className="flex-1 text-center text-sm font-medium leading-snug">
+                  {tab}
+                </div>
+                <div className="w-14 h-8 left-0 top-0 absolute rounded-md" />
               </button>
             ))}
           </div>
@@ -186,10 +210,11 @@ export default function LearnPage() {
             <div>
               <div className="flex items-center gap-2 mb-6">
                 <h2 className="text-xl font-bold text-white">Voca</h2>
-                <svg viewBox="0 0 24 24" className="w-6 h-6 text-white">
-                  <title>Refresh</title>
-                  <path fill="currentColor" d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 1L9 7V9H21ZM15 23L12 20L9 23L12 20L15 23Z"/>
-                </svg>
+                <img 
+                  src="/assets/reload.svg" 
+                  alt="Refresh" 
+                  className="w-6 h-6"
+                />
               </div>
 
               {/* Vocabulary Grid */}
@@ -199,28 +224,31 @@ export default function LearnPage() {
                     key={`${item.word}-${index}`}
                     type="button"
                     onClick={() => setSelectedVoca(item.word)}
-                    className={`relative p-4 rounded-2xl text-left transition-all ${
+                    className={`h-16 p-5 rounded-xl inline-flex justify-start items-center gap-1 transition-all ${
                       selectedVoca === item.word
                         ? 'bg-white text-black'
-                        : 'bg-gray-800 text-white hover:bg-gray-700'
+                        : 'text-black hover:bg-gray-100'
                     }`}
+                    style={{
+                      backgroundColor: selectedVoca === item.word ? 'white' : '#FAFAFA'
+                    }}
                   >
-                    <span className="font-medium">{item.word}</span>
+                    <div className="flex-1 text-left text-base font-medium font-['SUIT'] leading-normal">
+                      {item.word}
+                    </div>
                     
                     {/* Star Icon */}
-                    <div className="absolute top-3 right-3">
-                      {item.starred ? (
-                        <svg viewBox="0 0 24 24" className="w-5 h-5 text-yellow-400 fill-current">
-                          <title>Starred</title>
-                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                        </svg>
-                      ) : (
-                        <svg viewBox="0 0 24 24" className="w-5 h-5 text-gray-400 stroke-current fill-none">
-                          <title>Not starred</title>
-                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                        </svg>
-                      )}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => toggleStar(item.word, e)}
+                      className="w-6 h-6"
+                    >
+                      <img 
+                        src={starredWords.includes(item.word) ? "/assets/star.svg" : "/assets/non-star.svg"}
+                        alt={starredWords.includes(item.word) ? "Starred" : "Not starred"}
+                        className="w-6 h-6"
+                      />
+                    </button>
                   </button>
                 ))}
               </div>
@@ -229,8 +257,84 @@ export default function LearnPage() {
 
           {/* Pharase Section */}
           {selectedTab === 'Pharase' && (
-            <div className="text-center py-20">
-              <p className="text-gray-400">Pharase content coming soon...</p>
+            <div>
+              <div className="flex items-center gap-1.5 mb-6">
+                <h2 className="text-xl font-bold text-white">Quick Pharases</h2>
+                <img 
+                  src="/assets/reload.svg" 
+                  alt="Refresh" 
+                  className="w-5 h-5"
+                />
+              </div>
+
+              {/* Phrase Cards */}
+              <div className="flex flex-col gap-2 pb-8">
+                <button className="bg-neutral-50 flex items-center justify-start gap-1 p-5 rounded-xl w-full text-left">
+                  <div className="flex-1 text-[#292a2e] text-base font-medium">
+                    There's an outlet under the table.
+                  </div>
+                  <img 
+                    src="/assets/non-star.svg" 
+                    alt="Star" 
+                    className="w-6 h-6"
+                  />
+                </button>
+
+                <button className="bg-[#1f1f21] flex items-center justify-start gap-1 p-5 rounded-xl w-full text-left">
+                  <div className="flex-1 text-[rgba(244,244,245,0.6)] text-base font-medium">
+                    멀티탭 같이 써도 될까요?
+                  </div>
+                  <img 
+                    src="/assets/non-star.svg" 
+                    alt="Star" 
+                    className="w-6 h-6"
+                  />
+                </button>
+
+                <button className="bg-neutral-50 flex items-center justify-start gap-1 p-5 rounded-xl w-full text-left">
+                  <div className="flex-1 text-[#292a2e] text-base font-medium">
+                    I'll be back in five.
+                  </div>
+                  <img 
+                    src="/assets/non-star.svg" 
+                    alt="Star" 
+                    className="w-6 h-6"
+                  />
+                </button>
+
+                <button className="bg-neutral-50 flex items-center justify-start gap-1 p-5 rounded-xl w-full text-left">
+                  <div className="flex-1 text-[#292a2e] text-base font-medium">
+                    What's the Wi-Fi and password?
+                  </div>
+                  <img 
+                    src="/assets/non-star.svg" 
+                    alt="Star" 
+                    className="w-6 h-6"
+                  />
+                </button>
+
+                <button className="bg-neutral-50 flex items-center justify-start gap-1 p-5 rounded-xl w-full text-left">
+                  <div className="flex-1 text-[#292a2e] text-base font-medium">
+                    Let's sync for five minutes.
+                  </div>
+                  <img 
+                    src="/assets/non-star.svg" 
+                    alt="Star" 
+                    className="w-6 h-6"
+                  />
+                </button>
+
+                <button className="bg-neutral-50 flex items-center justify-start gap-1 p-5 rounded-xl w-full text-left">
+                  <div className="flex-1 text-[#292a2e] text-base font-medium">
+                    We have 10 minutes to demo
+                  </div>
+                  <img 
+                    src="/assets/non-star.svg" 
+                    alt="Star" 
+                    className="w-6 h-6"
+                  />
+                </button>
+              </div>
             </div>
           )}
 
