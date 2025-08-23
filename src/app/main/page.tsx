@@ -120,10 +120,10 @@ export default function Home() {
       }
     };
 
-    window.addEventListener('message', handleMessage);
+    window.document.addEventListener('message', handleMessage);
     
     return () => {
-      window.removeEventListener('message', handleMessage);
+      window.document.removeEventListener('message', handleMessage);
     };
   }, []);
 
