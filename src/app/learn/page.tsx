@@ -14,7 +14,7 @@ export default function LearnPage() {
   const [starredPhrases, setStarredPhrases] = useState<string[]>([]);
   const [flippedWords, setFlippedWords] = useState<string[]>([]);
   const [flippedPhrases, setFlippedPhrases] = useState<string[]>([]);
-  const [backgroundImage, setBackgroundImage] = useState('/8b3065bd083fb8ac6ae82ceab5042a0d2c23443e.png');
+  const [backgroundImage, setBackgroundImage] = useState('');
   const [isClient, setIsClient] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
 
@@ -45,12 +45,24 @@ export default function LearnPage() {
               console.log('🔍 Debug: Image to use:', imageToUse?.substring(0, 100) + '...');
               setBackgroundImage(imageToUse);
               
-              // Store in sessionStorage for future navigation
+              // Try to store in sessionStorage, but don't fail if quota exceeded
               try {
-                sessionStorage.setItem('currentImage', imageToUse);
-                console.log('🔍 Debug: Stored in sessionStorage');
+                // Only store if it's not too large (roughly 5MB limit)
+                if (imageToUse.length < 5 * 1024 * 1024) {
+                  sessionStorage.setItem('currentImage', imageToUse);
+                  console.log('🔍 Debug: Stored in sessionStorage');
+                } else {
+                  console.log('🔍 Debug: Image too large for sessionStorage, skipping');
+                }
               } catch (e) {
-                console.error('Failed to store in sessionStorage:', e);
+                console.warn('Failed to store in sessionStorage (quota exceeded):', e);
+                // Clear any existing data to free up space
+                try {
+                  sessionStorage.removeItem('currentImage');
+                  sessionStorage.removeItem('uploadedImage');
+                } catch (clearError) {
+                  console.warn('Failed to clear sessionStorage:', clearError);
+                }
               }
               
               return; // Exit early if successful
@@ -68,17 +80,27 @@ export default function LearnPage() {
       }
       
       // Method 2: Fallback to sessionStorage
-      const sessionImage = sessionStorage.getItem('currentImage');
-      if (sessionImage) {
-        setBackgroundImage(sessionImage);
-        return;
+      try {
+        const sessionImage = sessionStorage.getItem('currentImage');
+        if (sessionImage) {
+          console.log('🔍 Debug: Using sessionStorage image');
+          setBackgroundImage(sessionImage);
+          return;
+        }
+      } catch (e) {
+        console.warn('Failed to read from sessionStorage:', e);
       }
       
       // Method 3: Fallback to localStorage (legacy support)
-      const localImage = localStorage.getItem('uploadedImage');
-      if (localImage) {
-        setBackgroundImage(localImage);
-        return;
+      try {
+        const localImage = localStorage.getItem('uploadedImage');
+        if (localImage) {
+          console.log('🔍 Debug: Using localStorage image');
+          setBackgroundImage(localImage);
+          return;
+        }
+      } catch (e) {
+        console.warn('Failed to read from localStorage:', e);
       }
     };
     
@@ -210,23 +232,16 @@ export default function LearnPage() {
 
       {/* Background Image - Top 50vh */}
       <div className="relative h-[55vh] bg-gray-800">
-        {isClient && (
+        {isClient && backgroundImage && (
           <>
             <img 
               src={backgroundImage}
               alt="Background"
               className="w-full h-full object-cover"
-              onError={(e) => {
+              onError={() => {
                 console.error('Image failed to load:', backgroundImage?.substring(0, 100));
-                // Try to reload from localStorage as fallback
-                const uploadedImage = localStorage.getItem('uploadedImage');
-                if (uploadedImage && uploadedImage !== backgroundImage) {
-                  console.log('Trying fallback image from localStorage');
-                  setBackgroundImage(uploadedImage);
-                } else {
-                  console.log('No fallback available, hiding image');
-                  e.currentTarget.style.display = 'none';
-                }
+                // If image fails to load, just clear it to show the placeholder
+                setBackgroundImage('');
               }}
               onLoad={() => {
                 console.log('Image loaded successfully');
@@ -238,7 +253,7 @@ export default function LearnPage() {
         
         
         {/* Error message if no image is loaded */}
-        {isClient && (!backgroundImage || (!backgroundImage.startsWith('data:') && !backgroundImage.startsWith('http://') && !backgroundImage.startsWith('https://') && !backgroundImage.startsWith('file://'))) && (
+        {isClient && !backgroundImage && (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
             <div className="text-6xl mb-4">📷</div>
             <div className="text-xl mb-2">이미지를 찾을 수 없습니다</div>
