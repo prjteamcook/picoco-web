@@ -33,12 +33,13 @@ export default function LearnPage() {
           
           if (response.ok) {
             const result = await response.json();
-            if (result.success && result.imageData) {
-              setBackgroundImage(result.imageData);
+            if (result.success && (result.imageData || result.imageUrl)) {
+              const imageToUse = result.imageUrl || result.imageData;
+              setBackgroundImage(imageToUse);
               
               // Store in sessionStorage for future navigation
               try {
-                sessionStorage.setItem('currentImage', result.imageData);
+                sessionStorage.setItem('currentImage', imageToUse);
               } catch (e) {
                 console.error('Failed to store in sessionStorage:', e);
               }
@@ -215,7 +216,7 @@ export default function LearnPage() {
         )}
         
         {/* Error message if no image is loaded */}
-        {isClient && (!backgroundImage || !backgroundImage.startsWith('data:')) && (
+        {isClient && (!backgroundImage || (!backgroundImage.startsWith('data:') && !backgroundImage.startsWith('http://') && !backgroundImage.startsWith('https://') && !backgroundImage.startsWith('file://'))) && (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
             <div className="text-6xl mb-4">📷</div>
             <div className="text-xl mb-2">이미지를 찾을 수 없습니다</div>

@@ -67,55 +67,33 @@ export default function Home() {
           // Assume the message is an image URL
           const imageUrl = event.data;
           
-          // Fetch the image from the URL
-          const response = await fetch(imageUrl);
-          const blob = await response.blob();
+          // Store the image URL in session
+          const uploadResponse = await fetch('/api/image', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              imageUrl: imageUrl
+            })
+          });
           
-          // Convert blob to base64 for upload
-          const reader = new FileReader();
-          reader.onload = async (e) => {
-            const imageData = e.target?.result as string;
-            
-            if (imageData) {
-              try {
-                const uploadResponse = await fetch('/api/image', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    imageData: imageData
-                  })
-                });
-                
-                if (!uploadResponse.ok) {
-                  throw new Error(`Server responded with ${uploadResponse.status}`);
-                }
-                
-                const result = await uploadResponse.json();
-                
-                if (result.success && result.sessionId) {
-                  const learnUrl = `/learn?session=${result.sessionId}`;
-                  window.location.href = learnUrl;
-                } else {
-                  throw new Error(result.error || 'Upload failed');
-                }
-                
-              } catch (error) {
-                console.error('Failed to upload image from RN:', error);
-                alert('이미지 업로드에 실패했습니다.');
-              }
-            }
-          };
+          if (!uploadResponse.ok) {
+            throw new Error(`Server responded with ${uploadResponse.status}`);
+          }
           
-          reader.onerror = () => {
-            console.error('Failed to read blob');
-          };
+          const result = await uploadResponse.json();
           
-          reader.readAsDataURL(blob);
+          if (result.success && result.sessionId) {
+            const learnUrl = `/learn?session=${result.sessionId}`;
+            window.location.href = learnUrl;
+          } else {
+            throw new Error(result.error || 'Upload failed');
+          }
           
         } catch (error) {
           console.error('Failed to process message from RN:', error);
+          alert('이미지 URL 처리에 실패했습니다.');
         }
       }
     };
@@ -126,7 +104,6 @@ export default function Home() {
     return () => {
       window.removeEventListener('message', handleMessage);
       document.removeEventListener('message', handleMessage as unknown as EventListener);
-
     };
   }, []);
 
