@@ -64,16 +64,17 @@ export default function Home() {
     const handleMessage = async (event: MessageEvent) => {
       if (event.data) {
         try {
+          console.log('📱 Received message from RN:', typeof event.data, event.data);
           let imageData: string;
           
           // Check if data is already base64 (data:image/...)
           if (typeof event.data === 'string' && event.data.startsWith('data:image/')) {
-            console.log('📱 Received base64 image from RN');
+            console.log('📱 Processing complete base64 data URL');
             imageData = event.data;
           } 
           // Check if data is an object with base64 data
           else if (typeof event.data === 'object' && event.data.base64) {
-            console.log('📱 Received base64 object from RN');
+            console.log('📱 Processing base64 object, creating data URL');
             imageData = `data:image/jpeg;base64,${event.data.base64}`;
           }
           // Handle local file paths or URLs
@@ -165,6 +166,7 @@ export default function Home() {
           }
           
           // Store base64 data
+          console.log('📱 Storing base64 data, size:', imageData.length);
           const uploadResponse = await fetch('/api/image', {
             method: 'POST',
             headers: {
@@ -180,9 +182,11 @@ export default function Home() {
           }
           
           const result = await uploadResponse.json();
+          console.log('📱 Upload result:', result);
           
           if (result.success && result.sessionId) {
             const learnUrl = `/learn?session=${result.sessionId}`;
+            console.log('📱 Navigating to:', learnUrl);
             window.location.href = learnUrl;
           } else {
             throw new Error(result.error || 'Upload failed');
