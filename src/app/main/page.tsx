@@ -120,10 +120,13 @@ export default function Home() {
       }
     };
 
-    window.document.addEventListener('message', handleMessage);
+    window.addEventListener('message', handleMessage);
+    document.addEventListener('message', handleMessage as unknown as EventListener);
     
     return () => {
-      window.document.removeEventListener('message', handleMessage);
+      window.removeEventListener('message', handleMessage);
+      document.removeEventListener('message', handleMessage as unknown as EventListener);
+
     };
   }, []);
 
