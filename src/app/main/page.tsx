@@ -64,36 +64,86 @@ export default function Home() {
     const handleMessage = async (event: MessageEvent) => {
       if (event.data && typeof event.data === 'string') {
         try {
-          // Assume the message is an image URL
           const imageUrl = event.data;
+          console.log('📱 Received image URL from RN:', imageUrl);
           
-          // Store the image URL in session
-          const uploadResponse = await fetch('/api/image', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              imageUrl: imageUrl
-            })
-          });
-          
-          if (!uploadResponse.ok) {
-            throw new Error(`Server responded with ${uploadResponse.status}`);
-          }
-          
-          const result = await uploadResponse.json();
-          
-          if (result.success && result.sessionId) {
-            const learnUrl = `/learn?session=${result.sessionId}`;
-            window.location.href = learnUrl;
+          // For file:// URLs, we need to fetch and convert to base64
+          if (imageUrl.startsWith('file://')) {
+            try {
+              console.log('📱 Converting file:// URL to base64...');
+              const response = await fetch(imageUrl);
+              const blob = await response.blob();
+              
+              const reader = new FileReader();
+              reader.onload = async (e) => {
+                const imageData = e.target?.result as string;
+                console.log('📱 Converted to base64, size:', imageData.length);
+                
+                // Store base64 data instead of file URL
+                const uploadResponse = await fetch('/api/image', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    imageData: imageData
+                  })
+                });
+                
+                if (!uploadResponse.ok) {
+                  throw new Error(`Server responded with ${uploadResponse.status}`);
+                }
+                
+                const result = await uploadResponse.json();
+                
+                if (result.success && result.sessionId) {
+                  const learnUrl = `/learn?session=${result.sessionId}`;
+                  window.location.href = learnUrl;
+                } else {
+                  throw new Error(result.error || 'Upload failed');
+                }
+              };
+              
+              reader.onerror = () => {
+                console.error('Failed to read blob');
+                alert('이미지 파일을 읽을 수 없습니다.');
+              };
+              
+              reader.readAsDataURL(blob);
+              
+            } catch (fetchError) {
+              console.error('Failed to fetch file:// URL:', fetchError);
+              alert('이미지 파일에 접근할 수 없습니다.');
+            }
           } else {
-            throw new Error(result.error || 'Upload failed');
+            // For http/https URLs, store URL directly
+            const uploadResponse = await fetch('/api/image', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                imageUrl: imageUrl
+              })
+            });
+            
+            if (!uploadResponse.ok) {
+              throw new Error(`Server responded with ${uploadResponse.status}`);
+            }
+            
+            const result = await uploadResponse.json();
+            
+            if (result.success && result.sessionId) {
+              const learnUrl = `/learn?session=${result.sessionId}`;
+              window.location.href = learnUrl;
+            } else {
+              throw new Error(result.error || 'Upload failed');
+            }
           }
           
         } catch (error) {
           console.error('Failed to process message from RN:', error);
-          alert('이미지 URL 처리에 실패했습니다.');
+          alert('이미지 처리에 실패했습니다.');
         }
       }
     };

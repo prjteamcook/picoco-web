@@ -27,29 +27,44 @@ export default function LearnPage() {
       const urlParams = new URLSearchParams(window.location.search);
       const sessionId = urlParams.get('session');
       
+      console.log('🔍 Debug: Session ID from URL:', sessionId);
+      
       if (sessionId) {
         try {
+          console.log('🔍 Debug: Fetching from API...');
           const response = await fetch(`/api/image?sessionId=${sessionId}`);
+          
+          console.log('🔍 Debug: API response status:', response.status);
           
           if (response.ok) {
             const result = await response.json();
+            console.log('🔍 Debug: API result:', result);
+            
             if (result.success && (result.imageData || result.imageUrl)) {
               const imageToUse = result.imageUrl || result.imageData;
+              console.log('🔍 Debug: Image to use:', imageToUse?.substring(0, 100) + '...');
               setBackgroundImage(imageToUse);
               
               // Store in sessionStorage for future navigation
               try {
                 sessionStorage.setItem('currentImage', imageToUse);
+                console.log('🔍 Debug: Stored in sessionStorage');
               } catch (e) {
                 console.error('Failed to store in sessionStorage:', e);
               }
               
               return; // Exit early if successful
+            } else {
+              console.log('🔍 Debug: No image data in result');
             }
+          } else {
+            console.log('🔍 Debug: API response not ok');
           }
         } catch (error) {
           console.error('Failed to fetch image from server:', error);
         }
+      } else {
+        console.log('🔍 Debug: No session ID found');
       }
       
       // Method 2: Fallback to sessionStorage
@@ -213,6 +228,16 @@ export default function LearnPage() {
             />
             {/* No global overlay - let the image show clearly */}
           </>
+        )}
+        
+        {/* Debug info */}
+        {isClient && (
+          <div className="absolute top-20 left-5 z-30 bg-black bg-opacity-70 text-white p-2 rounded text-xs max-w-[90%]">
+            <div>Background Image: {backgroundImage ? backgroundImage.substring(0, 50) + '...' : 'null'}</div>
+            <div>Is Data URL: {backgroundImage?.startsWith('data:') ? 'Yes' : 'No'}</div>
+            <div>Is File URL: {backgroundImage?.startsWith('file://') ? 'Yes' : 'No'}</div>
+            <div>Is HTTP URL: {backgroundImage?.startsWith('http') ? 'Yes' : 'No'}</div>
+          </div>
         )}
         
         {/* Error message if no image is loaded */}

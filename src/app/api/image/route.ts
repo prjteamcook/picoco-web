@@ -55,15 +55,25 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(`📤 Image retrieved for session ID: ${sessionId}`);
+    console.log(`🔍 Debug: Stored data preview:`, storedData.substring(0, 100) + '...');
     
     // URL인지 base64 데이터인지 확인
     const isUrl = storedData.startsWith('http://') || storedData.startsWith('https://') || storedData.startsWith('file://');
+    console.log(`🔍 Debug: Is URL:`, isUrl);
     
-    return NextResponse.json({ 
+    const response = { 
       imageData: isUrl ? null : storedData,
       imageUrl: isUrl ? storedData : null,
       success: true 
+    };
+    
+    console.log(`🔍 Debug: Response:`, { 
+      hasImageData: !!response.imageData, 
+      hasImageUrl: !!response.imageUrl,
+      success: response.success 
     });
+    
+    return NextResponse.json(response);
 
   } catch (error) {
     console.error('❌ Failed to retrieve image:', error);
