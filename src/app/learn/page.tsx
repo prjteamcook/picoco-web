@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 export default function LearnPage() {
   const [selectedTab, setSelectedTab] = useState('Voca');
@@ -11,16 +11,73 @@ export default function LearnPage() {
   const [dragStartY, setDragStartY] = useState(0);
   const [currentTranslateY, setCurrentTranslateY] = useState(0);
   const [starredWords, setStarredWords] = useState<string[]>([]);
+  const [starredPhrases, setStarredPhrases] = useState<string[]>([]);
+  const [flippedWords, setFlippedWords] = useState<string[]>([]);
+  const [flippedPhrases, setFlippedPhrases] = useState<string[]>([]);
+  const [backgroundImage, setBackgroundImage] = useState('/8b3065bd083fb8ac6ae82ceab5042a0d2c23443e.png');
+  const [isClient, setIsClient] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
+
+  // Load uploaded image from server session or fallback storage
+  useEffect(() => {
+    setIsClient(true);
+    
+    const loadImage = async () => {
+      // Method 1: Check for session ID in URL parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const sessionId = urlParams.get('session');
+      
+      if (sessionId) {
+        try {
+          const response = await fetch(`/api/image?sessionId=${sessionId}`);
+          
+          if (response.ok) {
+            const result = await response.json();
+            if (result.success && result.imageData) {
+              setBackgroundImage(result.imageData);
+              
+              // Store in sessionStorage for future navigation
+              try {
+                sessionStorage.setItem('currentImage', result.imageData);
+              } catch (e) {
+                console.error('Failed to store in sessionStorage:', e);
+              }
+              
+              return; // Exit early if successful
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch image from server:', error);
+        }
+      }
+      
+      // Method 2: Fallback to sessionStorage
+      const sessionImage = sessionStorage.getItem('currentImage');
+      if (sessionImage) {
+        setBackgroundImage(sessionImage);
+        return;
+      }
+      
+      // Method 3: Fallback to localStorage (legacy support)
+      const localImage = localStorage.getItem('uploadedImage');
+      if (localImage) {
+        setBackgroundImage(localImage);
+        return;
+      }
+    };
+    
+    loadImage();
+  }, []);
+
   
   const tabs = ['Voca', 'Pharase', 'Dialogue'];
   
   const vocaWords = [
-    { word: 'lamp' },
-    { word: '노트북' },
-    { word: 'tote bag' },
-    { word: 'hoodie' },
-    { word: 'projector' }
+    { word: 'lamp', meaning: '램프' },
+    { word: 'laptop', meaning: '노트북' },
+    { word: 'tote bag', meaning: '토트백' },
+    { word: 'hoodie', meaning: '후드티' },
+    { word: 'projector', meaning: '프로젝터' }
   ];
 
   const toggleStar = (word: string, e: React.MouseEvent) => {
@@ -29,6 +86,31 @@ export default function LearnPage() {
       prev.includes(word) 
         ? prev.filter(w => w !== word)
         : [...prev, word]
+    );
+  };
+
+  const togglePhraseStar = (phrase: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setStarredPhrases(prev => 
+      prev.includes(phrase) 
+        ? prev.filter(p => p !== phrase)
+        : [...prev, phrase]
+    );
+  };
+
+  const toggleWordFlip = (word: string) => {
+    setFlippedWords(prev => 
+      prev.includes(word) 
+        ? prev.filter(w => w !== word)
+        : [...prev, word]
+    );
+  };
+
+  const togglePhraseFlip = (phrase: string) => {
+    setFlippedPhrases(prev => 
+      prev.includes(phrase) 
+        ? prev.filter(p => p !== phrase)
+        : [...prev, phrase]
     );
   };
 
@@ -43,10 +125,8 @@ export default function LearnPage() {
     
     const deltaY = clientY - dragStartY;
     
-    // Only allow upward drag to expand
-    if (deltaY < 0) {
-      setCurrentTranslateY(deltaY);
-    }
+    // Allow both upward and downward drag
+    setCurrentTranslateY(deltaY);
   };
 
   const handleDragEnd = () => {
@@ -56,6 +136,9 @@ export default function LearnPage() {
     if (currentTranslateY < -100) {
       // Dragged up significantly - expand
       setIsBottomSheetExpanded(true);
+    } else if (currentTranslateY > 100) {
+      // Dragged down significantly - collapse
+      setIsBottomSheetExpanded(false);
     } else {
       // Not dragged enough - stay in current state
       setIsBottomSheetExpanded(isBottomSheetExpanded);
@@ -91,6 +174,10 @@ export default function LearnPage() {
     document.addEventListener('mouseup', handleMouseUpGlobal);
   };
 
+  if (!isClient) {
+    return null; // Prevent server-side rendering
+  }
+
   return (
     <div className="min-h-screen bg-[#191919] text-white relative max-w-[600px] mx-auto overflow-hidden">
       {/* Header */}
@@ -100,31 +187,67 @@ export default function LearnPage() {
             src="/assets/home.svg" 
             alt="Home" 
             className="w-10 h-10"
+            style={{ filter: 'brightness(0) saturate(100%) invert(100%)' }}
           />
         </a>
       </div>
 
-      {/* Background Image - Full Height */}
-      <div className="relative h-screen">
-        <div 
-          className="w-full h-full bg-cover bg-center relative"
-          style={{
-            backgroundImage: 'url("/images/IMG_8972.png")'
-          }}
-        >
-          {/* Dark overlay for better text readability */}
-          <div className="absolute inset-0 bg-black bg-opacity-40"></div>
-        </div>
+      {/* Background Image - Top 50vh */}
+      <div className="relative h-[55vh] bg-gray-800">
+        {isClient && (
+          <>
+            <img 
+              src={backgroundImage}
+              alt="Background"
+              className="w-full h-full object-cover"
+              style={{ imageRendering: 'high-quality' }}
+              onError={(e) => {
+                // Try to reload from localStorage as fallback
+                const uploadedImage = localStorage.getItem('uploadedImage');
+                if (uploadedImage && uploadedImage !== backgroundImage) {
+                  setBackgroundImage(uploadedImage);
+                } else {
+                  e.currentTarget.style.display = 'none';
+                }
+              }}
+            />
+            {/* No global overlay - let the image show clearly */}
+          </>
+        )}
+        
+        {/* Error message if no image is loaded */}
+        {isClient && (!backgroundImage || !backgroundImage.startsWith('data:')) && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
+            <div className="text-6xl mb-4">📷</div>
+            <div className="text-xl mb-2">이미지를 찾을 수 없습니다</div>
+            <div className="text-sm text-gray-300 mb-4">메인 페이지에서 이미지를 업로드해주세요</div>
+            <a 
+              href="/main" 
+              className="px-6 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors"
+            >
+              메인 페이지로 이동
+            </a>
+          </div>
+        )}
+        
+        {/* Loading indicator */}
+        {!isClient && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-white">Loading...</div>
+          </div>
+        )}
       </div>
 
       {/* Bottom Sheet */}
       <div 
         ref={sheetRef}
         className={`fixed bottom-0 left-1/2 w-full max-w-[600px] bg-[#191919] rounded-t-3xl transition-all duration-300 ease-out z-30 flex flex-col ${
-          isBottomSheetExpanded ? 'h-[85vh]' : 'h-[50vh]'
+          isBottomSheetExpanded ? 'h-[75vh]' : 'h-[50vh]'
         } ${isDragging ? 'transition-none' : ''}`}
         style={{
-          transform: `translateX(-50%) translateY(${isDragging ? currentTranslateY : 0}px)`
+          transform: `translateX(-50%) translateY(${isDragging ? currentTranslateY : 0}px)`,
+          borderTopLeftRadius: '1.5rem',
+          borderTopRightRadius: '1.5rem'
         }}
       >
         {/* Sheet Handle - Draggable Area */}
@@ -228,32 +351,36 @@ export default function LearnPage() {
                   <button
                     key={`${item.word}-${index}`}
                     type="button"
-                    onClick={() => setSelectedVoca(item.word)}
-                    className={`h-16 p-5 rounded-xl inline-flex justify-start items-center gap-1 transition-all ${
-                      selectedVoca === item.word
-                        ? 'bg-white text-black'
-                        : 'text-black hover:bg-gray-100'
+                    onClick={() => toggleWordFlip(item.word)}
+                    className={`h-16 p-5 rounded-xl inline-flex justify-start items-center gap-1 transition-all duration-500 transform-gpu ${
+                      flippedWords.includes(item.word) ? 'rotateY-180' : ''
                     }`}
                     style={{
-                      backgroundColor: selectedVoca === item.word ? 'white' : '#FAFAFA'
+                      backgroundColor: flippedWords.includes(item.word) ? '#1F1F21' : '#FAFAFA',
+                      transformStyle: 'preserve-3d',
+                      transform: flippedWords.includes(item.word) ? 'rotateY(180deg)' : 'rotateY(0deg)'
                     }}
                   >
-                    <div className="flex-1 text-left text-base font-medium font-['SUIT'] leading-normal">
-                      {item.word}
+                    <div className="flex-1 text-left text-base font-medium font-['SUIT'] leading-normal"
+                         style={{
+                           backfaceVisibility: 'hidden',
+                           transform: flippedWords.includes(item.word) ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                           color: flippedWords.includes(item.word) ? '#F4F4F4' : '#000000'
+                         }}>
+                      {flippedWords.includes(item.word) ? item.meaning : item.word}
                     </div>
                     
                     {/* Star Icon */}
-                    <button
-                      type="button"
+                    <div
                       onClick={(e) => toggleStar(item.word, e)}
-                      className="w-6 h-6"
+                      className="w-6 h-6 cursor-pointer"
                     >
                       <img 
                         src={starredWords.includes(item.word) ? "/assets/star.svg" : "/assets/non-star.svg"}
                         alt={starredWords.includes(item.word) ? "Starred" : "Not starred"}
                         className="w-6 h-6"
                       />
-                    </button>
+                    </div>
                   </button>
                 ))}
               </div>
@@ -274,69 +401,159 @@ export default function LearnPage() {
 
               {/* Phrase Cards */}
               <div className="flex flex-col gap-2 pb-8">
-                <button className="bg-neutral-50 flex items-center justify-start gap-1 p-5 rounded-xl w-full text-left">
-                  <div className="flex-1 text-[#292a2e] text-base font-medium">
-                    There's an outlet under the table.
+                <button 
+                  type="button"
+                  onClick={() => togglePhraseFlip("There's an outlet under the table.")}
+                  className="flex items-center justify-start gap-1 p-5 rounded-xl w-full text-left transition-all duration-500"
+                  style={{
+                    backgroundColor: flippedPhrases.includes("There's an outlet under the table.") ? '#1F1F21' : '#f5f5f5',
+                    transformStyle: 'preserve-3d',
+                    transform: flippedPhrases.includes("There's an outlet under the table.") ? 'rotateY(180deg)' : 'rotateY(0deg)'
+                  }}
+                >
+                  <div className="flex-1 text-base font-medium"
+                       style={{
+                         backfaceVisibility: 'hidden',
+                         transform: flippedPhrases.includes("There's an outlet under the table.") ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                         color: flippedPhrases.includes("There's an outlet under the table.") ? '#F4F4F4' : '#292a2e'
+                       }}>
+                    {flippedPhrases.includes("There's an outlet under the table.") ? "테이블 아래에 콘센트가 있어요." : "There's an outlet under the table."}
                   </div>
                   <img 
-                    src="/assets/non-star.svg" 
+                    src={starredPhrases.includes("There's an outlet under the table.") ? "/assets/star.svg" : "/assets/non-star.svg"}
                     alt="Star" 
                     className="w-6 h-6"
+                    onClick={(e) => togglePhraseStar("There's an outlet under the table.", e)}
                   />
                 </button>
 
-                <button className="bg-[#1f1f21] flex items-center justify-start gap-1 p-5 rounded-xl w-full text-left">
-                  <div className="flex-1 text-[rgba(244,244,245,0.6)] text-base font-medium">
-                    멀티탭 같이 써도 될까요?
+                <button 
+                  type="button"
+                  onClick={() => togglePhraseFlip("멀티탭 같이 써도 될까요?")}
+                  className="flex items-center justify-start gap-1 p-5 rounded-xl w-full text-left transition-all duration-500"
+                  style={{
+                    backgroundColor: flippedPhrases.includes("멀티탭 같이 써도 될까요?") ? '#1F1F21' : '#1f1f21',
+                    transformStyle: 'preserve-3d',
+                    transform: flippedPhrases.includes("멀티탭 같이 써도 될까요?") ? 'rotateY(180deg)' : 'rotateY(0deg)'
+                  }}
+                >
+                  <div className="flex-1 text-base font-medium"
+                       style={{
+                         backfaceVisibility: 'hidden',
+                         transform: flippedPhrases.includes("멀티탭 같이 써도 될까요?") ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                         color: flippedPhrases.includes("멀티탭 같이 써도 될까요?") ? '#F4F4F4' : 'rgba(244,244,245,0.6)'
+                       }}>
+                    {flippedPhrases.includes("멀티탭 같이 써도 될까요?") ? "Can we share the power strip?" : "멀티탭 같이 써도 될까요?"}
                   </div>
                   <img 
-                    src="/assets/non-star.svg" 
+                    src={starredPhrases.includes("멀티탭 같이 써도 될까요?") ? "/assets/star.svg" : "/assets/non-star.svg"}
                     alt="Star" 
                     className="w-6 h-6"
+                    onClick={(e) => togglePhraseStar("멀티탭 같이 써도 될까요?", e)}
                   />
                 </button>
 
-                <button className="bg-neutral-50 flex items-center justify-start gap-1 p-5 rounded-xl w-full text-left">
-                  <div className="flex-1 text-[#292a2e] text-base font-medium">
-                    I'll be back in five.
+                <button 
+                  type="button"
+                  onClick={() => togglePhraseFlip("I'll be back in five.")}
+                  className="flex items-center justify-start gap-1 p-5 rounded-xl w-full text-left transition-all duration-500"
+                  style={{
+                    backgroundColor: flippedPhrases.includes("I'll be back in five.") ? '#1F1F21' : '#f5f5f5',
+                    transformStyle: 'preserve-3d',
+                    transform: flippedPhrases.includes("I'll be back in five.") ? 'rotateY(180deg)' : 'rotateY(0deg)'
+                  }}
+                >
+                  <div className="flex-1 text-base font-medium"
+                       style={{
+                         backfaceVisibility: 'hidden',
+                         transform: flippedPhrases.includes("I'll be back in five.") ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                         color: flippedPhrases.includes("I'll be back in five.") ? '#F4F4F4' : '#292a2e'
+                       }}>
+                    {flippedPhrases.includes("I'll be back in five.") ? "5분 후에 돌아올게요." : "I'll be back in five."}
                   </div>
                   <img 
-                    src="/assets/non-star.svg" 
+                    src={starredPhrases.includes("I'll be back in five.") ? "/assets/star.svg" : "/assets/non-star.svg"}
                     alt="Star" 
                     className="w-6 h-6"
+                    onClick={(e) => togglePhraseStar("I'll be back in five.", e)}
                   />
                 </button>
 
-                <button className="bg-neutral-50 flex items-center justify-start gap-1 p-5 rounded-xl w-full text-left">
-                  <div className="flex-1 text-[#292a2e] text-base font-medium">
-                    What's the Wi-Fi and password?
+                <button 
+                  type="button"
+                  onClick={() => togglePhraseFlip("What's the Wi-Fi and password?")}
+                  className="flex items-center justify-start gap-1 p-5 rounded-xl w-full text-left transition-all duration-500"
+                  style={{
+                    backgroundColor: flippedPhrases.includes("What's the Wi-Fi and password?") ? '#1F1F21' : '#f5f5f5',
+                    transformStyle: 'preserve-3d',
+                    transform: flippedPhrases.includes("What's the Wi-Fi and password?") ? 'rotateY(180deg)' : 'rotateY(0deg)'
+                  }}
+                >
+                  <div className="flex-1 text-base font-medium"
+                       style={{
+                         backfaceVisibility: 'hidden',
+                         transform: flippedPhrases.includes("What's the Wi-Fi and password?") ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                         color: flippedPhrases.includes("What's the Wi-Fi and password?") ? '#F4F4F4' : '#292a2e'
+                       }}>
+                    {flippedPhrases.includes("What's the Wi-Fi and password?") ? "와이파이와 비밀번호가 뭐예요?" : "What's the Wi-Fi and password?"}
                   </div>
                   <img 
-                    src="/assets/non-star.svg" 
+                    src={starredPhrases.includes("What's the Wi-Fi and password?") ? "/assets/star.svg" : "/assets/non-star.svg"}
                     alt="Star" 
                     className="w-6 h-6"
+                    onClick={(e) => togglePhraseStar("What's the Wi-Fi and password?", e)}
                   />
                 </button>
 
-                <button className="bg-neutral-50 flex items-center justify-start gap-1 p-5 rounded-xl w-full text-left">
-                  <div className="flex-1 text-[#292a2e] text-base font-medium">
-                    Let's sync for five minutes.
+                <button 
+                  type="button"
+                  onClick={() => togglePhraseFlip("Let's sync for five minutes.")}
+                  className="flex items-center justify-start gap-1 p-5 rounded-xl w-full text-left transition-all duration-500"
+                  style={{
+                    backgroundColor: flippedPhrases.includes("Let's sync for five minutes.") ? '#1F1F21' : '#f5f5f5',
+                    transformStyle: 'preserve-3d',
+                    transform: flippedPhrases.includes("Let's sync for five minutes.") ? 'rotateY(180deg)' : 'rotateY(0deg)'
+                  }}
+                >
+                  <div className="flex-1 text-base font-medium"
+                       style={{
+                         backfaceVisibility: 'hidden',
+                         transform: flippedPhrases.includes("Let's sync for five minutes.") ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                         color: flippedPhrases.includes("Let's sync for five minutes.") ? '#F4F4F4' : '#292a2e'
+                       }}>
+                    {flippedPhrases.includes("Let's sync for five minutes.") ? "5분간 싱크를 맞춰봐요." : "Let's sync for five minutes."}
                   </div>
                   <img 
-                    src="/assets/non-star.svg" 
+                    src={starredPhrases.includes("Let's sync for five minutes.") ? "/assets/star.svg" : "/assets/non-star.svg"}
                     alt="Star" 
                     className="w-6 h-6"
+                    onClick={(e) => togglePhraseStar("Let's sync for five minutes.", e)}
                   />
                 </button>
 
-                <button className="bg-neutral-50 flex items-center justify-start gap-1 p-5 rounded-xl w-full text-left">
-                  <div className="flex-1 text-[#292a2e] text-base font-medium">
-                    We have 10 minutes to demo
+                <button 
+                  type="button"
+                  onClick={() => togglePhraseFlip("We have 10 minutes to demo")}
+                  className="flex items-center justify-start gap-1 p-5 rounded-xl w-full text-left transition-all duration-500"
+                  style={{
+                    backgroundColor: flippedPhrases.includes("We have 10 minutes to demo") ? '#1F1F21' : '#f5f5f5',
+                    transformStyle: 'preserve-3d',
+                    transform: flippedPhrases.includes("We have 10 minutes to demo") ? 'rotateY(180deg)' : 'rotateY(0deg)'
+                  }}
+                >
+                  <div className="flex-1 text-base font-medium"
+                       style={{
+                         backfaceVisibility: 'hidden',
+                         transform: flippedPhrases.includes("We have 10 minutes to demo") ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                         color: flippedPhrases.includes("We have 10 minutes to demo") ? '#F4F4F4' : '#292a2e'
+                       }}>
+                    {flippedPhrases.includes("We have 10 minutes to demo") ? "데모할 시간이 10분 있어요." : "We have 10 minutes to demo"}
                   </div>
                   <img 
-                    src="/assets/non-star.svg" 
+                    src={starredPhrases.includes("We have 10 minutes to demo") ? "/assets/star.svg" : "/assets/non-star.svg"}
                     alt="Star" 
                     className="w-6 h-6"
+                    onClick={(e) => togglePhraseStar("We have 10 minutes to demo", e)}
                   />
                 </button>
               </div>

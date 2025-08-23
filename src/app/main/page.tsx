@@ -2,6 +2,13 @@
 
 import { useState, useRef, useEffect } from 'react';
 
+// Declare window.goCamera for React Native bridge
+declare global {
+  interface Window {
+    goCamera?: () => void;
+  }
+}
+
 export default function Home() {
   // Get today's date
   const today = new Date().getDate();
@@ -76,11 +83,13 @@ export default function Home() {
           alt="Picoco logo" 
           className="h-8"
         />
-        <img 
-          src="/assets/date_range.svg" 
-          alt="Date range" 
-          className="w-6 h-6"
-        />
+        <a href="/calendar" className="w-6 h-6 flex items-center justify-center" aria-label="Calendar">
+          <img 
+            src="/assets/date_range.svg" 
+            alt="Date range" 
+            className="w-6 h-6"
+          />
+        </a>
       </div>
 
       {/* Date Navigation */}
@@ -142,6 +151,7 @@ export default function Home() {
           <div className="relative transform -rotate-3">
             <button 
               type="button"
+              onClick={() => document.getElementById('camera-input')?.click()}
               className="w-full aspect-[3/4] border-2 border-dashed border-gray-500 rounded-2xl flex items-center justify-center hover:border-gray-400 transition-colors bg-[#313131]"
               aria-label="Add new photo"
             >
@@ -166,13 +176,137 @@ export default function Home() {
       <div className="fixed bottom-16 left-1/2 transform -translate-x-1/2 flex items-center">
         {/* Camera Button - centered */}
         <div className="relative">
-          <button type="button" className="w-20 h-20 flex items-center justify-center" aria-label="Take photo">
+          <input
+            type="file"
+            id="camera-input"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              
+              if (file) {
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                  const imageUrl = event.target?.result as string;
+                  
+                  if (imageUrl) {
+                    // Use original image without compression
+                    try {
+                      const response = await fetch('/api/image', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                          imageData: imageUrl // 원본 이미지 그대로 사용
+                        })
+                      });
+                      
+                      if (!response.ok) {
+                        throw new Error(`Server responded with ${response.status}`);
+                      }
+                      
+                      const result = await response.json();
+                      
+                      if (result.success && result.sessionId) {
+                        // 세션 ID로 learn 페이지로 이동
+                        const learnUrl = `/learn?session=${result.sessionId}`;
+                        window.location.href = learnUrl;
+                      } else {
+                        throw new Error(result.error || 'Upload failed');
+                      }
+                      
+                    } catch (error) {
+                      console.error('Failed to upload image:', error);
+                      
+                      // 원본이 너무 크면 압축 버전으로 fallback
+                      if (error.message.includes('413') || error.message.includes('431')) {
+                        console.log('Original image too large, trying compressed version...');
+                        
+                        // 최소한의 압축만 적용
+                        const img = new Image();
+                        img.onload = async () => {
+                          const canvas = document.createElement('canvas');
+                          const ctx = canvas.getContext('2d');
+                          
+                          // 원본 크기 유지, 품질만 약간 압축
+                          canvas.width = img.width;
+                          canvas.height = img.height;
+                          
+                          if (ctx) {
+                            ctx.imageSmoothingEnabled = true;
+                            ctx.imageSmoothingQuality = 'high';
+                            ctx.drawImage(img, 0, 0);
+                          }
+                          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.95); // 95% 품질
+                          
+                          try {
+                            const response = await fetch('/api/image', {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                              },
+                              body: JSON.stringify({
+                                imageData: compressedDataUrl
+                              })
+                            });
+                            
+                            if (!response.ok) {
+                              throw new Error(`Server responded with ${response.status}`);
+                            }
+                            
+                            const result = await response.json();
+                            
+                            if (result.success && result.sessionId) {
+                              const learnUrl = `/learn?session=${result.sessionId}`;
+                              window.location.href = learnUrl;
+                            } else {
+                              throw new Error(result.error || 'Upload failed');
+                            }
+                          } catch (fallbackError) {
+                            console.error('Fallback also failed:', fallbackError);
+                            alert('이미지가 너무 큽니다. 더 작은 이미지를 선택해주세요.');
+                          }
+                        };
+                        
+                        img.onerror = () => {
+                          console.error('Failed to load image for fallback');
+                          alert('이미지 처리에 실패했습니다.');
+                        };
+                        
+                        img.src = imageUrl;
+                      } else {
+                        alert('이미지 업로드에 실패했습니다. 다시 시도해주세요.');
+                      }
+                    }
+                  }
+                };
+                
+                reader.onerror = () => {
+                  console.error('Failed to read file');
+                };
+                
+                reader.readAsDataURL(file);
+              }
+            }}
+          />
+          <label 
+            htmlFor="camera-input" 
+            className="w-20 h-20 flex items-center justify-center cursor-pointer" 
+            aria-label="Take photo"
+            onClick={() => {
+              if (window.goCamera) {
+                window.goCamera();
+              }
+            }}
+          >
             <img 
               src="/assets/camera.svg" 
               alt="Camera" 
               className="w-20 h-20"
             />
-          </button>
+          </label>
         </div>
         
         {/* Favorite Button - positioned to the right */}

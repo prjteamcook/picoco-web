@@ -1,12 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState(23);
+  const [selectedMonth, setSelectedMonth] = useState(7); // Track which month has selected date
   
-  // August 2025 calendar data
-  const monthYear = 'August 2025';
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  
   const weekDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
   
   // Sample photo data for dates with photos
@@ -23,11 +27,18 @@ export default function CalendarPage() {
     { date: 25, image: '/8b3065bd083fb8ac6ae82ceab5042a0d2c23443e.png' },
   ];
   
-  // Generate calendar dates (August 2025 starts on Friday)
-  const generateCalendarDates = () => {
+  // Generate calendar dates for a specific month
+  const generateCalendarDates = (monthIndex: number) => {
     const dates = [];
-    const firstDayOfMonth = 5; // Friday (0=Sunday, 1=Monday, ..., 5=Friday)
-    const daysInMonth = 31;
+    
+    // Days in each month for 2025
+    const daysInMonths = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    
+    // First day of each month in 2025 (0=Sunday, 1=Monday, etc.)
+    const firstDayOfMonths = [3, 6, 6, 2, 4, 0, 2, 5, 1, 3, 6, 1]; // 2025 starts on Wednesday
+    
+    const firstDayOfMonth = firstDayOfMonths[monthIndex];
+    const daysInMonth = daysInMonths[monthIndex];
     
     // Add empty cells for days before month starts
     for (let i = 0; i < firstDayOfMonth; i++) {
@@ -42,22 +53,101 @@ export default function CalendarPage() {
     return dates;
   };
   
-  const calendarDates = generateCalendarDates();
-  
   const getPhotoForDate = (date: number) => {
     return photoDates.find(photo => photo.date === date);
   };
 
+  useEffect(() => {
+    // Scroll to August (month 7) when page loads
+    const scrollToAugust = () => {
+      const augustElement = document.querySelector('[data-month="7"]');
+      if (augustElement) {
+        augustElement.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      }
+    };
+
+    // Small delay to ensure DOM is fully rendered
+    const timer = setTimeout(scrollToAugust, 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const renderMonth = (monthIndex: number) => {
+    const calendarDates = generateCalendarDates(monthIndex);
+    const monthName = `${monthNames[monthIndex]} 2025`;
+    
+    return (
+      <div key={monthIndex} className="px-5 mb-12" data-month={monthIndex}>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-white">{monthName}</h2>
+          <div className="text-4xl font-light text-gray-400">{monthIndex + 1}</div>
+        </div>
+
+        {/* Week Days Header */}
+        <div className="grid grid-cols-7 gap-2 mb-4">
+          {weekDays.map((day, dayIndex) => (
+            <div key={dayIndex} className="text-center text-gray-400 text-sm py-2">
+              {day}
+            </div>
+          ))}
+        </div>
+
+        {/* Calendar Grid */}
+        <div className="grid grid-cols-7 gap-2">
+          {calendarDates.map((date, index) => {
+            if (date === null) {
+              return <div key={index} className="aspect-square"></div>;
+            }
+
+            const photo = getPhotoForDate(date);
+            const isSelected = date === selectedDate && monthIndex === selectedMonth;
+
+            return (
+              <button
+                key={index}
+                type="button"
+                onClick={() => {
+                  setSelectedDate(date);
+                  setSelectedMonth(monthIndex);
+                }}
+                className="aspect-square rounded-full overflow-hidden relative"
+                style={{
+                  backgroundImage: photo ? `url('${photo.image}')` : 'none',
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  backgroundColor: photo ? 'transparent' : '#333333',
+                  border: isSelected ? '2px solid #f97316' : 'none'
+                }}
+              >
+                {/* Date number overlay */}
+                <div className={`absolute inset-0 flex items-center justify-center ${
+                  isSelected ? 'bg-orange-500 bg-opacity-80' : photo ? 'bg-black bg-opacity-30' : 'bg-transparent'
+                }`}>
+                  <span className={`text-white font-medium text-sm ${
+                    photo ? 'drop-shadow-lg' : ''
+                  }`}>
+                    {date}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-[#191919] text-white relative max-w-[600px] mx-auto">
-
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4">
+      {/* Header - Fixed */}
+      <div className="fixed top-0 left-1/2 transform -translate-x-1/2 w-full max-w-[600px] bg-[#191919] z-20 flex items-center justify-between px-5 pt-12 pb-6">
         <a href="/main" className="w-10 h-10 flex items-center justify-center text-white" aria-label="Home">
           <img 
             src="/assets/home.svg" 
             alt="Home" 
-            className="w-6 h-6"
+            className="w-10 h-10"
           />
         </a>
         <h1 className="text-lg font-medium text-white">Photo</h1>
@@ -65,7 +155,7 @@ export default function CalendarPage() {
       </div>
 
       {/* Photo Grid Preview */}
-      <div className="px-5 mb-8">
+      <div className="px-5 my-8 mt-24">
         <div className="grid grid-cols-4 gap-2">
           {photoDates.slice(0, 8).map((photo, index) => (
             <div
@@ -86,61 +176,9 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Calendar Section */}
-      <div className="px-5">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-white">{monthYear}</h2>
-          <div className="text-4xl font-light text-gray-400">8</div>
-        </div>
-
-        {/* Week Days Header */}
-        <div className="grid grid-cols-7 gap-2 mb-4">
-          {weekDays.map((day, index) => (
-            <div key={index} className="text-center text-gray-400 text-sm py-2">
-              {day}
-            </div>
-          ))}
-        </div>
-
-        {/* Calendar Grid */}
-        <div className="grid grid-cols-7 gap-2 mb-8">
-          {calendarDates.map((date, index) => {
-            if (date === null) {
-              return <div key={index} className="aspect-square"></div>;
-            }
-
-            const photo = getPhotoForDate(date);
-            const isSelected = date === selectedDate;
-
-            return (
-              <button
-                key={index}
-                type="button"
-                onClick={() => setSelectedDate(date)}
-                className={`aspect-square rounded-full overflow-hidden relative ${
-                  isSelected ? 'ring-4 ring-orange-500' : ''
-                }`}
-                style={{
-                  backgroundImage: photo ? `url('${photo.image}')` : 'none',
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                  backgroundColor: photo ? 'transparent' : '#333333'
-                }}
-              >
-                {/* Date number overlay */}
-                <div className={`absolute inset-0 flex items-center justify-center ${
-                  isSelected ? 'bg-orange-500 bg-opacity-80' : photo ? 'bg-black bg-opacity-30' : 'bg-transparent'
-                }`}>
-                  <span className={`text-white font-medium text-sm ${
-                    photo ? 'drop-shadow-lg' : ''
-                  }`}>
-                    {date}
-                  </span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+      {/* All Calendar Months - Vertically Stacked */}
+      <div className="pb-8">
+        {monthNames.slice(0, 8).map((_, monthIndex) => renderMonth(monthIndex))}
       </div>
 
     </div>
