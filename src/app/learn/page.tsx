@@ -95,13 +95,13 @@ export default function LearnPage() {
     <div className="min-h-screen bg-[#191919] text-white relative max-w-[600px] mx-auto overflow-hidden">
       {/* Header */}
       <div className="absolute top-12 left-5 z-20">
-        <button type="button" className="w-10 h-10 flex items-center justify-center text-white" aria-label="Home">
+        <a href="/main" className="w-10 h-10 flex items-center justify-center text-white" aria-label="Home">
           <img 
             src="/assets/home.svg" 
             alt="Home" 
             className="w-10 h-10"
           />
-        </button>
+        </a>
       </div>
 
       {/* Background Image - Full Height */}
@@ -120,7 +120,7 @@ export default function LearnPage() {
       {/* Bottom Sheet */}
       <div 
         ref={sheetRef}
-        className={`fixed bottom-0 left-1/2 w-full max-w-[600px] bg-[#191919] rounded-t-3xl transition-all duration-300 ease-out z-30 ${
+        className={`fixed bottom-0 left-1/2 w-full max-w-[600px] bg-[#191919] rounded-t-3xl transition-all duration-300 ease-out z-30 flex flex-col ${
           isBottomSheetExpanded ? 'h-[85vh]' : 'h-[50vh]'
         } ${isDragging ? 'transition-none' : ''}`}
         style={{
@@ -141,7 +141,7 @@ export default function LearnPage() {
         </button>
 
         {/* Analysis Section - Always visible */}
-        <div className="px-5 pb-4">
+        <div className="px-5 pb-4 flex-shrink-0">
           <div className="flex items-start gap-2">
             <img 
               src="/assets/shine.svg" 
@@ -180,7 +180,12 @@ export default function LearnPage() {
         </div>
 
         {/* Content Section - Always visible now */}
-        <div className="px-5 pt-4 flex-1 overflow-y-auto">
+        <div 
+          className="px-5 pt-4 flex-1 overflow-y-auto min-h-0"
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+        >
           {/* Tab Navigation */}
           <div className="flex gap-4 mb-6">
             {tabs.map((tab) => (
@@ -340,8 +345,81 @@ export default function LearnPage() {
 
           {/* Dialogue Section */}
           {selectedTab === 'Dialogue' && (
-            <div className="text-center py-20">
-              <p className="text-gray-400">Dialogue content coming soon...</p>
+            <div>
+              <div className="flex items-center gap-1.5 mb-6">
+                <h2 className="text-xl font-bold text-white">Mini dialogues</h2>
+                <img 
+                  src="/assets/reload.svg" 
+                  alt="Refresh" 
+                  className="w-5 h-5"
+                />
+              </div>
+
+              {/* Dialogue Messages */}
+              <div className="flex flex-col gap-4 pb-8">
+                {/* First message - left side */}
+                <div className="flex gap-2 items-start w-full">
+                  <div className="flex flex-col gap-2 items-start">
+                    <img 
+                      src="/cha1.svg" 
+                      alt="Character 1" 
+                      className="w-[31px] h-[31px]"
+                    />
+                    <img 
+                      src="/assets/non-star.svg" 
+                      alt="Star" 
+                      className="w-4 h-4"
+                    />
+                  </div>
+                  <div className="bg-neutral-50 px-5 py-2 rounded-bl-[32px] rounded-br-[32px] rounded-tr-[32px] max-w-[271px]">
+                    <p className="text-[#292a2e] text-base font-medium leading-6">
+                      I'm getting a 401 from the API. Can you sanity-check my headers?
+                    </p>
+                  </div>
+                </div>
+
+                {/* Second message - right side */}
+                <div className="flex gap-2 items-start justify-end w-full">
+                  <div className="bg-[#303033] px-5 py-2 rounded-bl-[32px] rounded-br-[32px] rounded-tl-[32px] max-w-[282px]">
+                    <p className="text-[rgba(244,244,245,0.6)] text-base font-medium leading-6 text-right">
+                      "Sure. Did you include the bearer token?"
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2 items-end">
+                    <img 
+                      src="/cha2.svg" 
+                      alt="Character 2" 
+                      className="w-[20px] h-[32px]"
+                    />
+                    <img 
+                      src="/assets/non-star.svg" 
+                      alt="Star" 
+                      className="w-4 h-4"
+                    />
+                  </div>
+                </div>
+
+                {/* Third message - left side */}
+                <div className="flex gap-2 items-start w-full">
+                  <div className="flex flex-col gap-2 items-start">
+                    <img 
+                      src="/cha1.svg" 
+                      alt="Character 1" 
+                      className="w-[31px] h-[31px]"
+                    />
+                    <img 
+                      src="/assets/non-star.svg" 
+                      alt="Star" 
+                      className="w-4 h-4"
+                    />
+                  </div>
+                  <div className="bg-neutral-50 px-5 py-2 rounded-bl-[32px] rounded-br-[32px] rounded-tr-[32px]">
+                    <p className="text-[#292a2e] text-base font-medium leading-6 text-center whitespace-nowrap">
+                      I missed it. Adding now—works!
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>
