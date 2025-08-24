@@ -62,13 +62,23 @@ export default function Home() {
   useEffect(() => {
     // Handle messages from React Native
     const handleMessage = async (event: MessageEvent) => {
-      // Ignore messages that might be from file input events
-      if (!event.data || event.origin === window.location.origin) {
+      // Ignore messages that are clearly not from RN
+      if (!event.data) {
+        return;
+      }
+      
+      // Skip very short messages that are likely not image data
+      if (typeof event.data === 'string' && event.data.length < 50) {
         return;
       }
       
       try {
-        console.log('📱 Received message from RN:', typeof event.data, event.data);
+        console.log('📱 Received message from RN:', {
+          type: typeof event.data,
+          length: typeof event.data === 'string' ? event.data.length : 'N/A',
+          startsWithData: typeof event.data === 'string' && event.data.startsWith('data:'),
+          preview: typeof event.data === 'string' ? event.data.substring(0, 100) : event.data
+        });
         let imageData: string = '';
         
         // Try to process the data in different ways
@@ -84,9 +94,26 @@ export default function Home() {
           imageData = `data:image/jpeg;base64,${event.data.base64}`;
         }
         // 3. Check if it's just raw base64 string (without data: prefix)
-        else if (typeof event.data === 'string' && /^[A-Za-z0-9+/]+=*$/.test(event.data.slice(0, 100))) {
-          console.log('📱 Processing raw base64 string, adding data URL prefix');
-          imageData = `data:image/jpeg;base64,${event.data}`;
+        else if (typeof event.data === 'string' && event.data.length > 100) {
+          console.log('📱 Analyzing potential base64 string:', {
+            length: event.data.length,
+            firstChars: event.data.substring(0, 10),
+            lastChars: event.data.substring(event.data.length - 10),
+            hasValidBase64Chars: /^[A-Za-z0-9+/=]*$/.test(event.data),
+            lengthMod4: event.data.length % 4
+          });
+          
+          // More flexible base64 detection
+          const isBase64Like = /^[A-Za-z0-9+/=]*$/.test(event.data) && 
+                               event.data.length > 100 &&
+                               (event.data.length % 4 === 0 || event.data.endsWith('=') || event.data.endsWith('=='));
+          
+          if (isBase64Like) {
+            console.log('📱 Processing raw base64 string, adding data URL prefix');
+            imageData = `data:image/jpeg;base64,${event.data}`;
+          } else {
+            console.log('📱 String does not appear to be valid base64');
+          }
         }
         // 4. Check if it's a file path
         else if (typeof event.data === 'string' && (event.data.startsWith('/') || event.data.includes('/Users/') || event.data.includes('/Downloads/'))) {
@@ -141,24 +168,23 @@ export default function Home() {
           return; // Early return for URL processing
         }
         // 6. If nothing matches, try to treat it as base64 anyway
-        else {
+        else if (typeof event.data === 'string' && event.data.length > 100) {
           console.warn('📱 Unknown data format, attempting to treat as base64:', {
             type: typeof event.data,
-            length: typeof event.data === 'string' ? event.data.length : 'N/A',
-            preview: typeof event.data === 'string' ? event.data.substring(0, 50) : event.data
+            length: event.data.length,
+            preview: event.data.substring(0, 50)
           });
           
-          // Try to use it as-is if it's a string
-          if (typeof event.data === 'string') {
-            // If it looks like base64, add data URL prefix
-            if (event.data.length > 100) {
-              imageData = event.data.startsWith('data:') ? event.data : `data:image/jpeg;base64,${event.data}`;
-            } else {
-              throw new Error('Data too short to be valid image data');
-            }
-          } else {
-            throw new Error(`Unsupported data type: ${typeof event.data}`);
-          }
+          // Assume it's base64 and add prefix if needed
+          imageData = event.data.startsWith('data:') ? event.data : `data:image/jpeg;base64,${event.data}`;
+        }
+        else {
+          console.error('📱 Unsupported data format:', {
+            type: typeof event.data,
+            length: typeof event.data === 'string' ? event.data.length : 'N/A',
+            data: event.data
+          });
+          throw new Error(`Unsupported data type: ${typeof event.data}`);
         }
         
         // Store base64 data (only if imageData was successfully set)

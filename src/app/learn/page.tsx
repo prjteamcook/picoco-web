@@ -50,9 +50,21 @@ export default function LearnPage() {
             
             if (result.success && (result.imageData || result.imageUrl)) {
               const imageToUse = result.imageUrl || result.imageData;
-              console.log('🔍 Debug: Image to use:', `${imageToUse?.substring(0, 100)}...`);
-              setBackgroundImage(imageToUse);
-              setIsLoadingImage(false);
+              console.log('🔍 Debug: Image to use type:', typeof imageToUse);
+              console.log('🔍 Debug: Image to use length:', imageToUse?.length);
+              console.log('🔍 Debug: Image to use starts with data:', imageToUse?.startsWith('data:'));
+              console.log('🔍 Debug: Image to use starts with http:', imageToUse?.startsWith('http'));
+              console.log('🔍 Debug: Image to use preview:', `${imageToUse?.substring(0, 100)}...`);
+              
+              // Validate that the image data is in the correct format
+              if (imageToUse && (imageToUse.startsWith('data:image/') || imageToUse.startsWith('http'))) {
+                console.log('✅ Valid image format detected, setting background image');
+                setBackgroundImage(imageToUse);
+                setIsLoadingImage(false);
+              } else {
+                console.error('❌ Invalid image format:', imageToUse?.substring(0, 50));
+                setIsLoadingImage(false);
+              }
               
               // Clear pending session
               if (pendingSession === sessionId) {
@@ -271,10 +283,13 @@ export default function LearnPage() {
           <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
             {isLoadingImage ? (
               <>
-                <div className="text-6xl mb-4">📸</div>
+                <img 
+                  src="/load.gif" 
+                  alt="Loading..." 
+                  className="w-16 h-16 mb-4"
+                />
                 <div className="text-xl mb-2">이미지를 처리 중입니다</div>
-                <div className="text-sm text-gray-300 mb-4">잠시만 기다려주세요...</div>
-                <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <div className="text-sm text-gray-300">잠시만 기다려주세요...</div>
               </>
             ) : (
               <>

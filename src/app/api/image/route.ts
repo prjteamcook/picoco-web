@@ -15,17 +15,20 @@ export async function POST(request: NextRequest) {
     // 고유한 세션 ID 생성
     const sessionId = crypto.randomUUID();
     
+    const dataToStore = imageUrl || imageData;
+    console.log(`💾 Storing image with session ID: ${sessionId}`);
+    console.log(`📊 Data type: ${imageUrl ? 'URL' : 'data'}`);
+    console.log(`📊 Data length: ${dataToStore?.length || 0}`);
+    console.log(`📊 Data starts with: ${dataToStore?.substring(0, 50) || 'N/A'}`);
+    
     // 이미지 데이터 또는 URL을 메모리에 저장 (5분 후 자동 삭제)
-    imageStore.set(sessionId, imageUrl || imageData);
+    imageStore.set(sessionId, dataToStore);
     
     // 5분 후 자동 삭제
     setTimeout(() => {
       imageStore.delete(sessionId);
       console.log(`🗑️ Image session ${sessionId} expired and deleted`);
     }, 5 * 60 * 1000); // 5분
-
-    console.log(`💾 Image stored with session ID: ${sessionId}`);
-    console.log(`📊 Image ${imageUrl ? 'URL' : 'data'} stored`);
     
     return NextResponse.json({ 
       sessionId,
@@ -55,21 +58,35 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(`📤 Image retrieved for session ID: ${sessionId}`);
+    console.log(`🔍 Debug: Stored data length:`, storedData.length);
     console.log(`🔍 Debug: Stored data preview:`, storedData.substring(0, 100) + '...');
+    console.log(`🔍 Debug: Stored data starts with 'data:':`, storedData.startsWith('data:'));
+    console.log(`🔍 Debug: Stored data starts with 'http':`, storedData.startsWith('http'));
     
     // URL인지 base64 데이터인지 확인
     const isUrl = storedData.startsWith('http://') || storedData.startsWith('https://') || storedData.startsWith('file://');
+    const isDataUrl = storedData.startsWith('data:');
+    
     console.log(`🔍 Debug: Is URL:`, isUrl);
+    console.log(`🔍 Debug: Is Data URL:`, isDataUrl);
     
     const response = { 
-      imageData: isUrl ? null : storedData,
+      imageData: (isUrl || !isDataUrl) ? null : storedData,
       imageUrl: isUrl ? storedData : null,
       success: true 
     };
     
-    console.log(`🔍 Debug: Response:`, { 
+    // If it's not a URL but also not a proper data URL, treat it as raw base64
+    if (!isUrl && !isDataUrl && storedData.length > 100) {
+      console.log(`🔍 Debug: Treating as raw base64, converting to data URL`);
+      response.imageData = `data:image/jpeg;base64,${storedData}`;
+    }
+    
+    console.log(`🔍 Debug: Final response:`, { 
       hasImageData: !!response.imageData, 
       hasImageUrl: !!response.imageUrl,
+      imageDataLength: response.imageData?.length || 0,
+      imageUrlLength: response.imageUrl?.length || 0,
       success: response.success 
     });
     
