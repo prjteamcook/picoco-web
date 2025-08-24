@@ -22,7 +22,7 @@ export default function Home() {
   const photos = [
     {
       id: 1,
-      image: '/c5e64eae168894fcc65662c84fd19a3668b4c94d.png',
+      image: '/6eeefb626d236d950bb73fdc6e99fcd267aee37b.png',
       rotation: '-rotate-3'
     },
     {
@@ -62,110 +62,107 @@ export default function Home() {
   useEffect(() => {
     // Handle messages from React Native
     const handleMessage = async (event: MessageEvent) => {
-      if (event.data) {
-        try {
-          console.log('📱 Received message from RN:', typeof event.data, event.data);
-          let imageData: string;
+      // Ignore messages that might be from file input events
+      if (!event.data || event.origin === window.location.origin) {
+        return;
+      }
+      
+      try {
+        console.log('📱 Received message from RN:', typeof event.data, event.data);
+        let imageData: string = '';
+        
+        // Try to process the data in different ways
+        
+        // 1. Check if it's already a complete base64 data URL
+        if (typeof event.data === 'string' && event.data.startsWith('data:image/')) {
+          console.log('📱 Processing complete base64 data URL');
+          imageData = event.data;
+        }
+        // 2. Check if it's an object with base64 property
+        else if (typeof event.data === 'object' && event.data && event.data.base64) {
+          console.log('📱 Processing base64 object, creating data URL');
+          imageData = `data:image/jpeg;base64,${event.data.base64}`;
+        }
+        // 3. Check if it's just raw base64 string (without data: prefix)
+        else if (typeof event.data === 'string' && /^[A-Za-z0-9+/]+=*$/.test(event.data.slice(0, 100))) {
+          console.log('📱 Processing raw base64 string, adding data URL prefix');
+          imageData = `data:image/jpeg;base64,${event.data}`;
+        }
+        // 4. Check if it's a file path
+        else if (typeof event.data === 'string' && (event.data.startsWith('/') || event.data.includes('/Users/') || event.data.includes('/Downloads/'))) {
+          const filePath = event.data;
+          console.log('📱 Processing file path:', filePath);
           
-          // Check if data is already base64 (data:image/...)
-          if (typeof event.data === 'string' && event.data.startsWith('data:image/')) {
-            console.log('📱 Processing complete base64 data URL');
-            imageData = event.data;
-          } 
-          // Check if data is an object with base64 data
-          else if (typeof event.data === 'object' && event.data.base64) {
-            console.log('📱 Processing base64 object, creating data URL');
-            imageData = `data:image/jpeg;base64,${event.data.base64}`;
-          }
-          // Handle local file paths or URLs
-          else if (typeof event.data === 'string') {
-            const filePath = event.data;
-            console.log('📱 Received path/URL from RN:', filePath);
+          // Handle file path (keep existing logic but don't return early)
+          try {
+            const fileUrl = filePath.startsWith('file://') ? filePath : `file://${filePath}`;
+            const response = await fetch(fileUrl);
+            const blob = await response.blob();
             
-            // Check if it's a local file path (starts with / or contains file path patterns)
-            if (filePath.startsWith('/') || filePath.includes('/Users/') || filePath.includes('/Downloads/')) {
-              try {
-                console.log('📱 Converting local file path to base64...');
-                // Convert file path to file:// URL for fetch
-                const fileUrl = filePath.startsWith('file://') ? filePath : `file://${filePath}`;
-                const response = await fetch(fileUrl);
-                const blob = await response.blob();
-                
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                  const base64Data = e.target?.result as string;
-                  console.log('📱 Converted local file to base64, size:', base64Data.length);
-                  
-                  // Store base64 data
-                  const uploadResponse = await fetch('/api/image', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                      imageData: base64Data
-                    })
-                  });
-                  
-                  if (!uploadResponse.ok) {
-                    throw new Error(`Server responded with ${uploadResponse.status}`);
-                  }
-                  
-                  const result = await uploadResponse.json();
-                  
-                  if (result.success && result.sessionId) {
-                    const learnUrl = `/learn?session=${result.sessionId}`;
-                    window.location.href = learnUrl;
-                  } else {
-                    throw new Error(result.error || 'Upload failed');
-                  }
-                };
-                
-                reader.onerror = () => {
-                  console.error('Failed to read file blob');
-                  alert('파일을 읽을 수 없습니다.');
-                };
-                
-                reader.readAsDataURL(blob);
-                return;
-                
-              } catch (fetchError) {
-                console.error('Failed to fetch local file:', fetchError);
-                alert('로컬 파일에 접근할 수 없습니다.');
-                return;
-              }
-            } else {
-              // For http/https URLs, store URL directly
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+              const base64Data = e.target?.result as string;
+              console.log('📱 Converted file to base64, uploading...');
+              
               const uploadResponse = await fetch('/api/image', {
                 method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  imageUrl: filePath
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ imageData: base64Data })
               });
               
-              if (!uploadResponse.ok) {
-                throw new Error(`Server responded with ${uploadResponse.status}`);
+              if (uploadResponse.ok) {
+                const result = await uploadResponse.json();
+                if (result.success && result.sessionId) {
+                  window.location.href = `/learn?session=${result.sessionId}`;
+                }
               }
-              
-              const result = await uploadResponse.json();
-              
-              if (result.success && result.sessionId) {
-                const learnUrl = `/learn?session=${result.sessionId}`;
-                window.location.href = learnUrl;
-              } else {
-                throw new Error(result.error || 'Upload failed');
-              }
-              return;
-            }
-          } 
-          else {
-            throw new Error('Unsupported data format from RN');
+            };
+            reader.readAsDataURL(blob);
+            return; // Early return for file processing
+          } catch (error) {
+            console.error('File processing failed:', error);
           }
+        }
+        // 5. Check if it's a URL
+        else if (typeof event.data === 'string' && (event.data.startsWith('http://') || event.data.startsWith('https://'))) {
+          console.log('📱 Processing URL:', event.data);
+          const uploadResponse = await fetch('/api/image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ imageUrl: event.data })
+          });
           
-          // Store base64 data
+          if (uploadResponse.ok) {
+            const result = await uploadResponse.json();
+            if (result.success && result.sessionId) {
+              window.location.href = `/learn?session=${result.sessionId}`;
+            }
+          }
+          return; // Early return for URL processing
+        }
+        // 6. If nothing matches, try to treat it as base64 anyway
+        else {
+          console.warn('📱 Unknown data format, attempting to treat as base64:', {
+            type: typeof event.data,
+            length: typeof event.data === 'string' ? event.data.length : 'N/A',
+            preview: typeof event.data === 'string' ? event.data.substring(0, 50) : event.data
+          });
+          
+          // Try to use it as-is if it's a string
+          if (typeof event.data === 'string') {
+            // If it looks like base64, add data URL prefix
+            if (event.data.length > 100) {
+              imageData = event.data.startsWith('data:') ? event.data : `data:image/jpeg;base64,${event.data}`;
+            } else {
+              throw new Error('Data too short to be valid image data');
+            }
+          } else {
+            throw new Error(`Unsupported data type: ${typeof event.data}`);
+          }
+        }
+        
+        // Store base64 data (only if imageData was successfully set)
+        if (imageData) {
           console.log('📱 Storing base64 data, size:', imageData.length);
           const uploadResponse = await fetch('/api/image', {
             method: 'POST',
@@ -191,20 +188,22 @@ export default function Home() {
           } else {
             throw new Error(result.error || 'Upload failed');
           }
-          
-        } catch (error) {
-          console.error('Failed to process message from RN:', error);
-          alert('이미지 처리에 실패했습니다.');
+        } else {
+          throw new Error('No valid image data could be extracted');
         }
+        
+      } catch (error) {
+        console.error('Failed to process message from RN:', error);
+        // Don't show alert for every message error to avoid spam
+        console.warn('Skipping message due to processing error');
       }
     };
 
+    // Only listen for window messages, not document messages to avoid conflicts
     window.addEventListener('message', handleMessage);
-    document.addEventListener('message', handleMessage as unknown as EventListener);
     
     return () => {
       window.removeEventListener('message', handleMessage);
-      document.removeEventListener('message', handleMessage as unknown as EventListener);
     };
   }, []);
 
@@ -224,7 +223,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-[#191919] text-white relative max-w-[600px] mx-auto overflow-hidden">
+    <div className="min-h-screen bg-[#191919] text-white relative max-w-[600px] mx-auto overflow-hidden" suppressHydrationWarning>
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-12 pb-6">
         <img 
@@ -303,7 +302,17 @@ export default function Home() {
               onClick={() => {
                 if (window.goCamera) {
                   try {
-                    window.goCamera();
+                    // Generate a temporary session ID and navigate immediately
+                    const tempSessionId = crypto.randomUUID();
+                    localStorage.setItem('pendingImageSession', tempSessionId);
+                    window.location.href = `/learn?session=${tempSessionId}`;
+                    
+                    // Call goCamera after navigation
+                    setTimeout(() => {
+                      if (window.goCamera) {
+                        window.goCamera();
+                      }
+                    }, 100);
                   } catch (error) {
                     console.error('goCamera failed:', error);
                     document.getElementById('camera-input')?.click();
@@ -458,7 +467,17 @@ export default function Home() {
             onClick={() => {
               if (window.goCamera) {
                 try {
-                  window.goCamera();
+                  // Generate a temporary session ID and navigate immediately
+                  const tempSessionId = crypto.randomUUID();
+                  localStorage.setItem('pendingImageSession', tempSessionId);
+                  window.location.href = `/learn?session=${tempSessionId}`;
+                  
+                  // Call goCamera after navigation
+                  setTimeout(() => {
+                    if (window.goCamera) {
+                      window.goCamera();
+                    }
+                  }, 100);
                 } catch (error) {
                   console.error('goCamera failed:', error);
                   document.getElementById('camera-input')?.click();

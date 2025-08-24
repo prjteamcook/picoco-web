@@ -16,6 +16,7 @@ export default function LearnPage() {
   const [flippedPhrases, setFlippedPhrases] = useState<string[]>([]);
   const [backgroundImage, setBackgroundImage] = useState('');
   const [isClient, setIsClient] = useState(false);
+  const [isLoadingImage, setIsLoadingImage] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
 
   // Load uploaded image from server session or fallback storage
@@ -28,6 +29,13 @@ export default function LearnPage() {
       const sessionId = urlParams.get('session');
       
       console.log('🔍 Debug: Session ID from URL:', sessionId);
+      
+      // Check if this is a pending image session (camera was just clicked)
+      const pendingSession = localStorage.getItem('pendingImageSession');
+      if (pendingSession === sessionId) {
+        console.log('🔍 Debug: This is a pending image session, showing loading state');
+        setIsLoadingImage(true);
+      }
       
       if (sessionId) {
         try {
@@ -42,8 +50,14 @@ export default function LearnPage() {
             
             if (result.success && (result.imageData || result.imageUrl)) {
               const imageToUse = result.imageUrl || result.imageData;
-              console.log('🔍 Debug: Image to use:', imageToUse?.substring(0, 100) + '...');
+              console.log('🔍 Debug: Image to use:', `${imageToUse?.substring(0, 100)}...`);
               setBackgroundImage(imageToUse);
+              setIsLoadingImage(false);
+              
+              // Clear pending session
+              if (pendingSession === sessionId) {
+                localStorage.removeItem('pendingImageSession');
+              }
               
               // Try to store in sessionStorage, but don't fail if quota exceeded
               try {
@@ -252,18 +266,29 @@ export default function LearnPage() {
         )}
         
         
-        {/* Error message if no image is loaded */}
+        {/* Loading or Error message */}
         {isClient && !backgroundImage && (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
-            <div className="text-6xl mb-4">📷</div>
-            <div className="text-xl mb-2">이미지를 찾을 수 없습니다</div>
-            <div className="text-sm text-gray-300 mb-4">메인 페이지에서 이미지를 업로드해주세요</div>
-            <a 
-              href="/main" 
-              className="px-6 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors"
-            >
-              메인 페이지로 이동
-            </a>
+            {isLoadingImage ? (
+              <>
+                <div className="text-6xl mb-4">📸</div>
+                <div className="text-xl mb-2">이미지를 처리 중입니다</div>
+                <div className="text-sm text-gray-300 mb-4">잠시만 기다려주세요...</div>
+                <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              </>
+            ) : (
+              <>
+                <div className="text-6xl mb-4">📷</div>
+                <div className="text-xl mb-2">이미지를 찾을 수 없습니다</div>
+                <div className="text-sm text-gray-300 mb-4">메인 페이지에서 이미지를 업로드해주세요</div>
+                <a 
+                  href="/main" 
+                  className="px-6 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors"
+                >
+                  메인 페이지로 이동
+                </a>
+              </>
+            )}
           </div>
         )}
         

@@ -15,16 +15,16 @@ export default function CalendarPage() {
   
   // Sample photo data for dates with photos
   const photoDates = [
-    { date: 1, image: '/c5e64eae168894fcc65662c84fd19a3668b4c94d.png' },
-    { date: 8, image: '/8b3065bd083fb8ac6ae82ceab5042a0d2c23443e.png' },
-    { date: 11, image: '/c5e64eae168894fcc65662c84fd19a3668b4c94d.png' },
-    { date: 12, image: '/8b3065bd083fb8ac6ae82ceab5042a0d2c23443e.png' },
-    { date: 14, image: '/6eeefb626d236d950bb73fdc6e99fcd267aee37b.png' },
-    { date: 17, image: '/c5e64eae168894fcc65662c84fd19a3668b4c94d.png' },
-    { date: 19, image: '/8b3065bd083fb8ac6ae82ceab5042a0d2c23443e.png' },
-    { date: 22, image: '/6eeefb626d236d950bb73fdc6e99fcd267aee37b.png' },
-    { date: 23, image: '/c5e64eae168894fcc65662c84fd19a3668b4c94d.png' },
-    { date: 25, image: '/8b3065bd083fb8ac6ae82ceab5042a0d2c23443e.png' },
+    { date: 1, image: '/6eeefb626d236d950bb73fdc6e99fcd267aee37b.png' },
+    { date: 8, image: '/02496047af6ad9c068245c05b212af79996b2c97.png' },
+    { date: 11, image: '/f34ff8bac20842b9b8a6ef4fd2c1e612a26c4d2f.png' },
+    { date: 12, image: '/6eeefb626d236d950bb73fdc6e99fcd267aee37b.png' },
+    { date: 14, image: '/02496047af6ad9c068245c05b212af79996b2c97.png' },
+    { date: 17, image: '/f34ff8bac20842b9b8a6ef4fd2c1e612a26c4d2f.png' },
+    { date: 19, image: '/6eeefb626d236d950bb73fdc6e99fcd267aee37b.png' },
+    { date: 22, image: '/02496047af6ad9c068245c05b212af79996b2c97.png' },
+    { date: 23, image: '/f34ff8bac20842b9b8a6ef4fd2c1e612a26c4d2f.png' },
+    { date: 25, image: '/6eeefb626d236d950bb73fdc6e99fcd267aee37b.png' },
   ];
   
   // Generate calendar dates for a specific month
