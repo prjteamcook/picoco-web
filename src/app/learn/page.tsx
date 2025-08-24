@@ -22,6 +22,9 @@ export default function LearnPage() {
   const [isLoadingImage, setIsLoadingImage] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [aiVocaWords, setAiVocaWords] = useState<Array<{word: string, meaning: string}>>([]);
+  const [aiPhrases, setAiPhrases] = useState<Array<{id: string, phrase: string, translation: string, isDark: boolean}>>([]);
+  const [aiDialogueMessages, setAiDialogueMessages] = useState<Array<{id: string, message: string, character: 'left' | 'right', characterImage: string}>>([]);
   const sheetRef = useRef<HTMLDivElement>(null);
 
   // AI analysis function
@@ -48,7 +51,7 @@ export default function LearnPage() {
       });
       
       // Create FormData
-      const formData = new FormData();
+        const formData = new FormData();
       formData.append('image', blob, 'analyze-image.jpg');
       
       console.log('🤖 Sending POST request to AI API...');
@@ -56,33 +59,130 @@ export default function LearnPage() {
       console.log('🤖 FormData keys:', Array.from(formData.keys()));
       
       const response = await fetch('http://3.34.46.159:3000/ai/analyze-image', {
-        method: 'POST',
-        body: formData
+          method: 'POST',
+          body: formData
       });
       
       console.log('🤖 AI API response status:', response.status);
       console.log('🤖 AI API response headers:', Object.fromEntries(response.headers.entries()));
-      
-      if (!response.ok) {
-        const errorText = await response.text();
+          
+          if (!response.ok) {
+            const errorText = await response.text();
         console.error('🤖 ❌ AI analysis failed:', {
-          status: response.status,
-          statusText: response.statusText,
-          errorText: errorText
-        });
+              status: response.status,
+              statusText: response.statusText,
+              errorText: errorText
+            });
         setIsAnalyzing(false);
-        return;
-      }
-      
-      const result = await response.json();
+            return;
+          }
+          
+          const result = await response.json();
       console.log('🤖 ✅ AI analysis result:', result);
       
       // Store analysis result
       setAnalysisResult(result);
       setIsAnalyzing(false);
       
-      // TODO: Process AI analysis result (update vocabulary, phrases, etc.)
-      // You can update the component state here with the AI analysis results
+      // Process AI analysis result - update vocabulary, phrases, and dialogues
+      console.log('🤖 Processing AI analysis result...');
+      
+      // Log the complete result structure for debugging
+      console.log('🤖 📊 Complete AI result structure:', JSON.stringify(result, null, 2));
+      
+      // Extract data from nested structure if it exists
+      const data = result.data || result;
+      console.log('🤖 📊 Working with data:', data);
+      
+      // Try to find vocabulary data in various possible locations
+      let vocabArray = data.extractedWords || data.words || data.vocabulary || data.voca;
+      
+      // If still not found, look for any array in the result that might contain words
+      if (!vocabArray || !Array.isArray(vocabArray)) {
+        const possibleArrays = Object.values(result).filter(val => Array.isArray(val));
+        console.log('🤖 🔍 Searching for vocabulary in arrays:', possibleArrays);
+        
+        // Look for arrays that contain word-like objects
+        vocabArray = possibleArrays.find((arr: any) => 
+          arr.length > 0 && 
+          arr.some((item: any) => 
+            (typeof item === 'object' && (item.word || item.english || item.korean || item.meaning))
+          )
+        );
+      }
+      
+      if (vocabArray && Array.isArray(vocabArray)) {
+        const vocaData = vocabArray.map((item: any, index: number) => ({
+          word: item.word || item.english || item.term || item.text || `Word ${index + 1}`,  // 기본 표시: 영어 단어
+          meaning: item.ko || item.korean || item.meaning || item.translation || item.definition || 'No meaning'  // 클릭시 표시: 한글 뜻
+        }));
+        setAiVocaWords(vocaData);
+        console.log('🤖 ✅ Updated Voca data (word: 영어, meaning: 한글):', vocaData);
+      } else {
+        console.log('🤖 ⚠️ No vocabulary data found in result structure');
+      }
+      
+      // Try to find phrases data in various possible locations
+      let phrasesArray = data.generatedExamples || data.examples || data.phrases || data.sentences;
+      
+      if (!phrasesArray || !Array.isArray(phrasesArray)) {
+        const possibleArrays = Object.values(result).filter(val => Array.isArray(val));
+        console.log('🤖 🔍 Searching for phrases in arrays:', possibleArrays);
+        
+        // Look for arrays that contain phrase-like objects (different from vocabulary)
+        phrasesArray = possibleArrays.find((arr: any) => 
+          arr.length > 0 && 
+          arr.some((item: any) => 
+            (typeof item === 'object' && (item.example || item.phrase || item.sentence)) ||
+            (typeof item === 'string' && item.length > 10) // Assume longer strings are phrases
+          )
+        );
+      }
+      
+      if (phrasesArray && Array.isArray(phrasesArray)) {
+        const phrasesData = phrasesArray.map((item: any, index: number) => ({
+          id: `ai-phrase-${index + 1}`,
+          phrase: item.english || item.example || item.phrase || item.sentence || item.text || item || `Example ${index + 1}`,
+          translation: item.korean || item.translation || item.meaning || 'No translation',
+          isDark: index % 2 === 1 // Alternate dark/light
+        }));
+        setAiPhrases(phrasesData);
+        console.log('🤖 ✅ Updated Phrases data:', phrasesData);
+      } else {
+        console.log('🤖 ⚠️ No phrases data found in result structure');
+      }
+      
+      // Try to find dialogue data in various possible locations
+      let dialogueArray = data.scenario?.dialogue || data.scenario || data.dialogue || data.conversations || data.dialogs;
+      
+      if (!dialogueArray || !Array.isArray(dialogueArray)) {
+        const possibleArrays = Object.values(result).filter(val => Array.isArray(val));
+        console.log('🤖 🔍 Searching for dialogue in arrays:', possibleArrays);
+        
+        // Look for arrays that contain dialogue-like objects
+        dialogueArray = possibleArrays.find((arr: any) => 
+          arr.length > 0 && 
+          arr.some((item: any) => 
+            (typeof item === 'object' && (item.message || item.dialogue || item.speaker)) ||
+            (typeof item === 'string' && item.length > 5) // Assume strings could be dialogue
+          )
+        );
+      }
+      
+            if (dialogueArray && Array.isArray(dialogueArray)) {
+        const dialogueData = dialogueArray.map((item: any, index: number) => ({
+          id: `ai-dialogue-${index + 1}`,
+          message: item.english || item.message || item.text || item.dialogue || item.content || item || `Message ${index + 1}`,
+          character: (index % 2 === 0 ? 'left' : 'right') as 'left' | 'right',
+          characterImage: index % 2 === 0 ? '/cha1.svg' : '/cha2.svg'
+        }));
+        setAiDialogueMessages(dialogueData);
+        console.log('🤖 ✅ Updated Dialogue data:', dialogueData);
+        } else {
+        console.log('🤖 ⚠️ No dialogue data found in result structure');
+      }
+      
+      console.log('🤖 ✅ AI analysis processing completed');
       
     } catch (error) {
       console.error('🤖 ❌ AI analysis request failed:', error);
@@ -132,11 +232,11 @@ export default function LearnPage() {
                 
                 // Store in sessionStorage for faster future access
                 try {
-                  if (imageToUse.length < 5 * 1024 * 1024) {
-                    sessionStorage.setItem('currentImage', imageToUse);
+                if (imageToUse.length < 5 * 1024 * 1024) {
+                  sessionStorage.setItem('currentImage', imageToUse);
                     console.log('✅ Stored in sessionStorage');
-                  }
-                } catch (e) {
+                }
+              } catch (e) {
                   console.warn('Failed to store in sessionStorage:', e);
                 }
                 
@@ -144,10 +244,10 @@ export default function LearnPage() {
                 sendToAIAnalysis(imageToUse);
                 
                 return; // Exit if successful
-              } else {
-                console.error('❌ Invalid image format:', imageToUse?.substring(0, 50));
-              }
             } else {
+                console.error('❌ Invalid image format:', imageToUse?.substring(0, 50));
+            }
+          } else {
               console.log('🔍 No image data in API result');
             }
           } else {
@@ -272,29 +372,6 @@ export default function LearnPage() {
 
   
   const tabs = ['Voca', 'Pharase', 'Dialogue'];
-  
-  const vocaWords = [
-    { word: 'lamp', meaning: '램프' },
-    { word: 'laptop', meaning: '노트북' },
-    { word: 'tote bag', meaning: '토트백' },
-    { word: 'hoodie', meaning: '후드티' },
-    { word: 'projector', meaning: '프로젝터' }
-  ];
-
-  const phrases = [
-    { id: 'phrase1', phrase: "There's an outlet under the table.", translation: "테이블 아래에 콘센트가 있어요.", isDark: false },
-    { id: 'phrase2', phrase: "멀티탭 같이 써도 될까요?", translation: "Can we share the power strip?", isDark: true },
-    { id: 'phrase3', phrase: "I'll be back in five.", translation: "5분 후에 돌아올게요.", isDark: false },
-    { id: 'phrase4', phrase: "What's the Wi-Fi and password?", translation: "와이파이와 비밀번호가 뭐예요?", isDark: false },
-    { id: 'phrase5', phrase: "Let's sync for five minutes.", translation: "5분간 싱크를 맞춰봐요.", isDark: false },
-    { id: 'phrase6', phrase: "We have 10 minutes to demo", translation: "데모할 시간이 10분 있어요.", isDark: false }
-  ];
-
-  const dialogueMessages = [
-    { id: 'msg1', message: "I'm getting a 401 from the API. Can you sanity-check my headers?", character: 'left' as const, characterImage: '/cha1.svg' },
-    { id: 'msg2', message: '"Sure. Did you include the bearer token?"', character: 'right' as const, characterImage: '/cha2.svg' },
-    { id: 'msg3', message: "I missed it. Adding now—works!", character: 'left' as const, characterImage: '/cha1.svg' }
-  ];
 
   const toggleStar = (word: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -420,56 +497,7 @@ export default function LearnPage() {
         </a>
       </div>
 
-      {/* 임시 디버깅 버튼들 */}
-      <div className="absolute top-12 right-5 z-20 flex flex-col gap-2">
-        <button 
-          type="button"
-          onClick={() => {
-            console.log('🔴 Force POST button clicked (PNG test)');
-            // PNG 헤더로 시작하는 더미 데이터
-            const testBlob = new Blob([new Uint8Array([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])], { type: 'image/png' });
-            const testFormData = new FormData();
-            testFormData.append('image', testBlob, 'force-test.png');
-            
-            console.log('🔴 Sending forced PNG POST request...');
-            console.log('🔴 Test blob type:', testBlob.type);
-            console.log('🔴 Test filename: force-test.png');
-            
-            fetch('http://3.34.46.159:3000/ai/analyze-image', {
-              method: 'POST',
-              body: testFormData
-            }).then(async (response) => {
-              console.log('🔴 Forced POST response status:', response.status);
-              const text = await response.text();
-              console.log('🔴 Forced POST response text:', text);
-            }).catch((error) => {
-              console.log('🔴 Forced POST error:', error);
-            });
-          }}
-          className="w-20 h-10 bg-red-500 text-white text-xs rounded"
-        >
-          Force PNG
-        </button>
-        
-        <button 
-          type="button"
-          onClick={() => {
-            console.log('🟣 Check data button clicked');
-            console.log('🟣 window.pendingImageForAI:', (window as any).pendingImageForAI);
-            console.log('🟣 sessionStorage hasPendingImage:', sessionStorage.getItem('hasPendingImage'));
-            console.log('🟣 sessionStorage pendingImageInfo:', sessionStorage.getItem('pendingImageInfo'));
-            console.log('🟣 Current backgroundImage state:', {
-              exists: !!backgroundImage,
-              length: backgroundImage?.length,
-              preview: backgroundImage?.substring(0, 100)
-            });
-            console.log('🟣 Image element src:', document.querySelector('img[alt="Background"]')?.getAttribute('src')?.substring(0, 100));
-          }}
-          className="w-20 h-10 bg-purple-500 text-white text-xs rounded"
-        >
-          Check Data
-        </button>
-      </div>
+
 
       {/* Background Image - Top 50vh */}
       <div className="relative h-[55vh] bg-gray-800">
@@ -589,6 +617,38 @@ export default function LearnPage() {
                   >
                     새로고침
                   </button>
+                  
+                  {analysisResult && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        console.log('🔍 AI Result Structure Analysis:');
+                        console.log('🔍 All keys in result:', Object.keys(analysisResult));
+                        console.log('🔍 Full result object:', analysisResult);
+                        
+                        const data = analysisResult.data || analysisResult;
+                        console.log('🔍 Data keys:', Object.keys(data));
+                        console.log('🔍 Data object:', data);
+                        
+                        // Check for array properties
+                        Object.entries(data).forEach(([key, value]) => {
+                          if (Array.isArray(value)) {
+                            console.log(`🔍 Array found - ${key}:`, value);
+                          }
+                        });
+                        
+                        // Check situationAnalysis
+                        if (data.situationAnalysis) {
+                          console.log('🔍 situationAnalysis:', data.situationAnalysis);
+                        }
+                        
+                        alert(`Data 키들: ${Object.keys(data).join(', ')}\n\nsituationAnalysis context: ${data.situationAnalysis?.context || 'Not found'}`);
+                      }}
+                      className="px-3 py-1 bg-purple-500 text-white rounded text-xs"
+                    >
+                      AI 구조 분석
+                    </button>
+                  )}
                 </div>
                 
                 <a 
@@ -663,31 +723,30 @@ export default function LearnPage() {
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                       <p className="text-white text-sm">AI가 이미지를 분석 중입니다...</p>
                     </div>
-                  ) : analysisResult ? (
-                    <div>
-                      <p className="text-white text-sm leading-relaxed">
-                        {analysisResult.description || "AI 분석이 완료되었습니다."}
-                      </p>
-                      <div 
-                        className="w-full h-[0.5px] my-2" 
-                        style={{ backgroundColor: 'rgba(255, 255, 255, 0.3)' }}
-                      ></div>
-                      <p className="text-white text-sm">
-                        {analysisResult.korean_description || "AI 분석 결과를 확인하세요."}
+                                                      ) : analysisResult ? (
+                <div>
+                  <p className="text-white text-sm leading-relaxed">
+                        {analysisResult.data?.situationAnalysis?.context || 
+                         analysisResult.situationAnalysis?.context || 
+                         analysisResult.data?.situationAnalysis?.situation || 
+                         analysisResult.situationAnalysis?.situation || 
+                         analysisResult.situation || 
+                         analysisResult.description || 
+                         "AI 분석이 완료되었습니다."}
                       </p>
                     </div>
                   ) : (
                     <div>
                       <p className="text-white text-sm leading-relaxed">
                         이미지를 업로드하면 AI가 자동으로 분석합니다.
-                      </p>
-                      <div 
-                        className="w-full h-[0.5px] my-2" 
-                        style={{ backgroundColor: 'rgba(255, 255, 255, 0.3)' }}
-                      ></div>
-                      <p className="text-white text-sm">
+                  </p>
+                  <div 
+                    className="w-full h-[0.5px] my-2" 
+                    style={{ backgroundColor: 'rgba(255, 255, 255, 0.3)' }}
+                  ></div>
+                  <p className="text-white text-sm">
                         단어, 구문, 대화를 자동으로 생성합니다.
-                      </p>
+                  </p>
                     </div>
                   )}
                 </div>
@@ -732,16 +791,29 @@ export default function LearnPage() {
             <div>
               <div className="flex items-center gap-2 mb-6">
                 <h2 className="text-xl font-bold text-white">Voca</h2>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (backgroundImage) {
+                      console.log('🔄 Reanalyzing image for Voca...');
+                      sendToAIAnalysis(backgroundImage);
+                    }
+                  }}
+                  className="hover:opacity-70 transition-opacity"
+                  aria-label="Refresh Voca"
+                >
                 <img 
                   src="/assets/reload.svg" 
                   alt="Refresh" 
                   className="w-6 h-6"
                 />
+                </button>
               </div>
 
               {/* Vocabulary Grid */}
               <div className="grid grid-cols-2 gap-3 pb-8">
-                {vocaWords.map((item, index) => (
+                {aiVocaWords.length > 0 ? (
+                  aiVocaWords.map((item, index) => (
                   <VocaCard
                     key={`${item.word}-${index}`}
                     word={item.word}
@@ -751,7 +823,19 @@ export default function LearnPage() {
                     onFlip={() => toggleWordFlip(item.word)}
                     onStar={(e) => toggleStar(item.word, e)}
                   />
-                ))}
+                  ))
+                ) : (
+                  <div className="col-span-2 text-center text-gray-400 py-8">
+                    {isAnalyzing ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <p>AI가 단어를 추출하고 있습니다...</p>
+                      </div>
+                    ) : (
+                      <p>이미지를 업로드하면 AI가 단어를 추출합니다</p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -761,16 +845,29 @@ export default function LearnPage() {
             <div>
               <div className="flex items-center gap-1.5 mb-6">
                 <h2 className="text-xl font-bold text-white">Quick Pharases</h2>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (backgroundImage) {
+                      console.log('🔄 Reanalyzing image for Phrases...');
+                      sendToAIAnalysis(backgroundImage);
+                    }
+                  }}
+                  className="hover:opacity-70 transition-opacity"
+                  aria-label="Refresh Phrases"
+                >
                 <img 
                   src="/assets/reload.svg" 
                   alt="Refresh" 
                   className="w-5 h-5"
                 />
+                </button>
               </div>
 
               {/* Phrase Cards */}
               <div className="flex flex-col gap-2 pb-8">
-                {phrases.map((item) => (
+                {aiPhrases.length > 0 ? (
+                  aiPhrases.map((item) => (
                   <PhraseCard
                     key={item.id}
                     phrase={item.phrase}
@@ -781,7 +878,19 @@ export default function LearnPage() {
                     onFlip={() => togglePhraseFlip(item.phrase)}
                     onStar={(e) => togglePhraseStar(item.phrase, e)}
                   />
-                ))}
+                  ))
+                ) : (
+                  <div className="text-center text-gray-400 py-8">
+                    {isAnalyzing ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <p>AI가 예문을 생성하고 있습니다...</p>
+                      </div>
+                    ) : (
+                      <p>이미지를 업로드하면 AI가 예문을 생성합니다</p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -791,18 +900,43 @@ export default function LearnPage() {
             <div>
               <div className="flex items-center gap-1.5 mb-6">
                 <h2 className="text-xl font-bold text-white">Mini dialogues</h2>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (backgroundImage) {
+                      console.log('🔄 Reanalyzing image for Dialogues...');
+                      sendToAIAnalysis(backgroundImage);
+                    }
+                  }}
+                  className="hover:opacity-70 transition-opacity"
+                  aria-label="Refresh Dialogues"
+                >
                 <img 
                   src="/assets/reload.svg" 
                   alt="Refresh" 
                   className="w-5 h-5"
                 />
+                </button>
               </div>
 
+              {aiDialogueMessages.length > 0 ? (
               <DialogueCard 
-                messages={dialogueMessages}
+                  messages={aiDialogueMessages}
                 onStarMessage={toggleStarMessage}
                 starredMessages={starredMessages}
               />
+              ) : (
+                <div className="text-center text-gray-400 py-8">
+                  {isAnalyzing ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <p>AI가 대화를 생성하고 있습니다...</p>
+            </div>
+                  ) : (
+                    <p>이미지를 업로드하면 AI가 대화를 생성합니다</p>
+          )}
+        </div>
+              )}
             </div>
           )}
         </div>
