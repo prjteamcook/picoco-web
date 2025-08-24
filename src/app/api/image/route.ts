@@ -1,7 +1,25 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 
 // 임시 메모리 저장소 (실제 프로덕션에서는 Redis 등을 사용)
 const imageStore = new Map<string, string>();
+
+// CORS 헤더를 추가하는 헬퍼 함수
+function corsHeaders() {
+  return {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  };
+}
+
+// OPTIONS 요청 처리 (preflight)
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: corsHeaders(),
+  });
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,11 +52,16 @@ export async function POST(request: NextRequest) {
       sessionId,
       success: true,
       message: 'Image uploaded successfully'
+    }, {
+      headers: corsHeaders(),
     });
 
   } catch (error) {
     console.error('❌ Failed to store image:', error);
-    return NextResponse.json({ error: 'Failed to store image' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to store image' }, { 
+      status: 500,
+      headers: corsHeaders(),
+    });
   }
 }
 
@@ -48,13 +71,19 @@ export async function GET(request: NextRequest) {
     const sessionId = searchParams.get('sessionId');
     
     if (!sessionId) {
-      return NextResponse.json({ error: 'No session ID provided' }, { status: 400 });
+      return NextResponse.json({ error: 'No session ID provided' }, { 
+        status: 400,
+        headers: corsHeaders(),
+      });
     }
 
     const storedData = imageStore.get(sessionId);
     
     if (!storedData) {
-      return NextResponse.json({ error: 'Image not found or expired' }, { status: 404 });
+      return NextResponse.json({ error: 'Image not found or expired' }, { 
+        status: 404,
+        headers: corsHeaders(),
+      });
     }
 
     console.log(`📤 Image retrieved for session ID: ${sessionId}`);
@@ -90,10 +119,15 @@ export async function GET(request: NextRequest) {
       success: response.success 
     });
     
-    return NextResponse.json(response);
+    return NextResponse.json(response, {
+      headers: corsHeaders(),
+    });
 
   } catch (error) {
     console.error('❌ Failed to retrieve image:', error);
-    return NextResponse.json({ error: 'Failed to retrieve image' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to retrieve image' }, { 
+      status: 500,
+      headers: corsHeaders(),
+    });
   }
 }
