@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { VocaCard } from '@/components/VocaCard';
 import { PhraseCard } from '@/components/PhraseCard';
 import { DialogueCard } from '@/components/DialogueCard';
@@ -12,11 +12,6 @@ export default function LearnPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartY, setDragStartY] = useState(0);
   const [currentTranslateY, setCurrentTranslateY] = useState(0);
-  const [starredWords, setStarredWords] = useState<string[]>([]);
-  const [starredPhrases, setStarredPhrases] = useState<string[]>([]);
-  const [starredMessages, setStarredMessages] = useState<string[]>([]);
-  const [flippedWords, setFlippedWords] = useState<string[]>([]);
-  const [flippedPhrases, setFlippedPhrases] = useState<string[]>([]);
   const [backgroundImage, setBackgroundImage] = useState('');
   const [isClient, setIsClient] = useState(false);
   const [isLoadingImage, setIsLoadingImage] = useState(false);
@@ -25,10 +20,61 @@ export default function LearnPage() {
   const [aiVocaWords, setAiVocaWords] = useState<Array<{word: string, meaning: string}>>([]);
   const [aiPhrases, setAiPhrases] = useState<Array<{id: string, phrase: string, translation: string, isDark: boolean}>>([]);
   const [aiDialogueMessages, setAiDialogueMessages] = useState<Array<{id: string, message: string, character: 'left' | 'right', characterImage: string}>>([]);
+  
+  // 북마크 상태 관리
+  const [starredVocas, setStarredVocas] = useState<string[]>([]);
+  const [starredPhrases, setStarredPhrases] = useState<string[]>([]);
+  const [starredDialogues, setStarredDialogues] = useState<string[]>([]);
+  const [flippedVocas, setFlippedVocas] = useState<{ [key: string]: boolean }>({});
+  const [flippedPhrases, setFlippedPhrases] = useState<{ [key: string]: boolean }>({});
   const sheetRef = useRef<HTMLDivElement>(null);
 
+  // 북마크 로컬스토리지에서 로드
+  useEffect(() => {
+    if (isClient) {
+      const savedVocas = localStorage.getItem('starredVocas');
+      const savedPhrases = localStorage.getItem('starredPhrases');
+      const savedDialogues = localStorage.getItem('starredDialogues');
+      
+      if (savedVocas) setStarredVocas(JSON.parse(savedVocas));
+      if (savedPhrases) setStarredPhrases(JSON.parse(savedPhrases));
+      if (savedDialogues) setStarredDialogues(JSON.parse(savedDialogues));
+    }
+  }, [isClient]);
+
+  // 북마크 핸들러 함수들
+  const handleVocaStar = (word: string, meaning: string) => {
+    const vocaKey = `${word}|${meaning}`;
+    const newStarredVocas = starredVocas.includes(vocaKey)
+      ? starredVocas.filter(item => item !== vocaKey)
+      : [...starredVocas, vocaKey];
+    
+    setStarredVocas(newStarredVocas);
+    localStorage.setItem('starredVocas', JSON.stringify(newStarredVocas));
+  };
+
+  const handlePhraseStar = (id: string, phrase: string, translation: string) => {
+    const phraseKey = `${id}|${phrase}|${translation}`;
+    const newStarredPhrases = starredPhrases.includes(phraseKey)
+      ? starredPhrases.filter(item => item !== phraseKey)
+      : [...starredPhrases, phraseKey];
+    
+    setStarredPhrases(newStarredPhrases);
+    localStorage.setItem('starredPhrases', JSON.stringify(newStarredPhrases));
+  };
+
+  const handleDialogueStar = (messageId: string, message: string, character: 'left' | 'right') => {
+    const dialogueKey = `${messageId}|${message}|${character}`;
+    const newStarredDialogues = starredDialogues.includes(dialogueKey)
+      ? starredDialogues.filter(item => item !== dialogueKey)
+      : [...starredDialogues, dialogueKey];
+    
+    setStarredDialogues(newStarredDialogues);
+    localStorage.setItem('starredDialogues', JSON.stringify(newStarredDialogues));
+  };
+
   // AI analysis function
-  const sendToAIAnalysis = async (imageData: string) => {
+  const sendToAIAnalysis = useCallback(async (imageData: string) => {
     try {
       console.log('🤖 Starting AI analysis...');
       console.log('🤖 Image data length:', imageData.length);
@@ -193,7 +239,7 @@ export default function LearnPage() {
       });
       setIsAnalyzing(false);
     }
-  };
+  }, []);
 
   // Load uploaded image and send to AI analysis
   useEffect(() => {
@@ -344,18 +390,18 @@ export default function LearnPage() {
     // Load existing bookmarks from localStorage
     const loadBookmarks = () => {
       try {
-        const savedStarredWords = localStorage.getItem('starredWords');
-        const savedStarredPhrases = localStorage.getItem('starredPhrases');
-        const savedStarredMessages = localStorage.getItem('starredMessages');
+        const savedVocas = localStorage.getItem('starredVocas');
+        const savedPhrases = localStorage.getItem('starredPhrases');
+        const savedDialogues = localStorage.getItem('starredDialogues');
         
-        if (savedStarredWords) {
-          setStarredWords(JSON.parse(savedStarredWords));
+        if (savedVocas) {
+          setStarredVocas(JSON.parse(savedVocas));
         }
-        if (savedStarredPhrases) {
-          setStarredPhrases(JSON.parse(savedStarredPhrases));
+        if (savedPhrases) {
+          setStarredPhrases(JSON.parse(savedPhrases));
         }
-        if (savedStarredMessages) {
-          setStarredMessages(JSON.parse(savedStarredMessages));
+        if (savedDialogues) {
+          setStarredDialogues(JSON.parse(savedDialogues));
         }
       } catch (error) {
         console.error('Failed to load bookmarks:', error);
@@ -368,56 +414,13 @@ export default function LearnPage() {
     return () => {
       window.removeEventListener('message', handleMessage);
     };
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sendToAIAnalysis]);
 
   
   const tabs = ['Voca', 'Pharase', 'Dialogue'];
 
-  const toggleStar = (word: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const newStarredWords = starredWords.includes(word) 
-      ? starredWords.filter(w => w !== word)
-      : [...starredWords, word];
-    
-    setStarredWords(newStarredWords);
-    localStorage.setItem('starredWords', JSON.stringify(newStarredWords));
-  };
 
-  const togglePhraseStar = (phrase: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const newStarredPhrases = starredPhrases.includes(phrase) 
-      ? starredPhrases.filter(p => p !== phrase)
-      : [...starredPhrases, phrase];
-    
-    setStarredPhrases(newStarredPhrases);
-    localStorage.setItem('starredPhrases', JSON.stringify(newStarredPhrases));
-  };
-
-  const toggleWordFlip = (word: string) => {
-    setFlippedWords(prev => 
-      prev.includes(word) 
-        ? prev.filter(w => w !== word)
-        : [...prev, word]
-    );
-  };
-
-  const togglePhraseFlip = (phrase: string) => {
-    setFlippedPhrases(prev => 
-      prev.includes(phrase) 
-        ? prev.filter(p => p !== phrase)
-        : [...prev, phrase]
-    );
-  };
-
-  const toggleStarMessage = (messageId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const newStarredMessages = starredMessages.includes(messageId) 
-      ? starredMessages.filter(id => id !== messageId)
-      : [...starredMessages, messageId];
-    
-    setStarredMessages(newStarredMessages);
-    localStorage.setItem('starredMessages', JSON.stringify(newStarredMessages));
-  };
 
 
   const handleDragStart = (clientY: number) => {
@@ -721,20 +724,50 @@ export default function LearnPage() {
                   {isAnalyzing ? (
                     <div className="flex items-center gap-2">
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <p className="text-white text-sm">AI가 이미지를 분석 중입니다...</p>
+                      <p className="text-white text-sm">AI is extracting words...</p>
                     </div>
                                                       ) : analysisResult ? (
-                <div>
+                <div className="space-y-3">
+                  {/* 영어 context */}
+                  {(analysisResult.data?.situationAnalysis?.context || 
+                    analysisResult.situationAnalysis?.context || 
+                    analysisResult.data?.situationAnalysis?.situation || 
+                    analysisResult.situationAnalysis?.situation || 
+                    analysisResult.situation || 
+                    analysisResult.description) && (
                   <p className="text-white text-sm leading-relaxed">
-                        {analysisResult.data?.situationAnalysis?.context || 
-                         analysisResult.situationAnalysis?.context || 
-                         analysisResult.data?.situationAnalysis?.situation || 
-                         analysisResult.situationAnalysis?.situation || 
-                         analysisResult.situation || 
-                         analysisResult.description || 
-                         "AI 분석이 완료되었습니다."}
-                      </p>
-                    </div>
+                      {analysisResult.data?.situationAnalysis?.context || 
+                       analysisResult.situationAnalysis?.context || 
+                       analysisResult.data?.situationAnalysis?.situation || 
+                       analysisResult.situationAnalysis?.situation || 
+                       analysisResult.situation || 
+                       analysisResult.description}
+                    </p>
+                  )}
+                  
+                  {/* 한국어 koContext */}
+                  {(analysisResult.data?.situationAnalysis?.koContext || 
+                    analysisResult.situationAnalysis?.koContext) && (
+                    <p className="text-white text-sm leading-relaxed">
+                      {analysisResult.data?.situationAnalysis?.koContext || 
+                       analysisResult.situationAnalysis?.koContext}
+                    </p>
+                  )}
+                  
+                  {/* 둘 다 없는 경우 기본 메시지 */}
+                  {!(analysisResult.data?.situationAnalysis?.context || 
+                     analysisResult.situationAnalysis?.context || 
+                     analysisResult.data?.situationAnalysis?.situation || 
+                     analysisResult.situationAnalysis?.situation || 
+                     analysisResult.situation || 
+                     analysisResult.description ||
+                     analysisResult.data?.situationAnalysis?.koContext || 
+                     analysisResult.situationAnalysis?.koContext) && (
+                    <p className="text-white text-sm leading-relaxed">
+                      AI 분석이 완료되었습니다.
+                    </p>
+                  )}
+                </div>
                   ) : (
                     <div>
                       <p className="text-white text-sm leading-relaxed">
@@ -813,17 +846,28 @@ export default function LearnPage() {
               {/* Vocabulary Grid */}
               <div className="grid grid-cols-2 gap-3 pb-8">
                 {aiVocaWords.length > 0 ? (
-                  aiVocaWords.map((item, index) => (
-                  <VocaCard
-                    key={`${item.word}-${index}`}
-                    word={item.word}
-                    meaning={item.meaning}
-                    isFlipped={flippedWords.includes(item.word)}
-                    isStarred={starredWords.includes(item.word)}
-                    onFlip={() => toggleWordFlip(item.word)}
-                    onStar={(e) => toggleStar(item.word, e)}
-                  />
-                  ))
+                  aiVocaWords.map((item, index) => {
+                    const vocaKey = `${item.word}|${item.meaning}`;
+                    return (
+                      <VocaCard
+                        key={`${item.word}-${index}`}
+                        word={item.word}
+                        meaning={item.meaning}
+                        isFlipped={flippedVocas[vocaKey] || false}
+                        isStarred={starredVocas.includes(vocaKey)}
+                        onFlip={() => {
+                          setFlippedVocas(prev => ({
+                            ...prev,
+                            [vocaKey]: !prev[vocaKey]
+                          }));
+                        }}
+                        onStar={(e) => {
+                          e.stopPropagation();
+                          handleVocaStar(item.word, item.meaning);
+                        }}
+                      />
+                    );
+                  })
                 ) : (
                   <div className="col-span-2 text-center text-gray-400 py-8">
                     {isAnalyzing ? (
@@ -867,18 +911,29 @@ export default function LearnPage() {
               {/* Phrase Cards */}
               <div className="flex flex-col gap-2 pb-8">
                 {aiPhrases.length > 0 ? (
-                  aiPhrases.map((item) => (
-                  <PhraseCard
-                    key={item.id}
-                    phrase={item.phrase}
-                    translation={item.translation}
-                    isFlipped={flippedPhrases.includes(item.phrase)}
-                    isStarred={starredPhrases.includes(item.phrase)}
-                    isDark={item.isDark}
-                    onFlip={() => togglePhraseFlip(item.phrase)}
-                    onStar={(e) => togglePhraseStar(item.phrase, e)}
-                  />
-                  ))
+                  aiPhrases.map((item) => {
+                    const phraseKey = `${item.id}|${item.phrase}|${item.translation}`;
+                    return (
+                      <PhraseCard
+                        key={item.id}
+                        phrase={item.phrase}
+                        translation={item.translation}
+                        isFlipped={flippedPhrases[phraseKey] || false}
+                        isStarred={starredPhrases.includes(phraseKey)}
+                        isDark={item.isDark}
+                        onFlip={() => {
+                          setFlippedPhrases(prev => ({
+                            ...prev,
+                            [phraseKey]: !prev[phraseKey]
+                          }));
+                        }}
+                        onStar={(e) => {
+                          e.stopPropagation();
+                          handlePhraseStar(item.id, item.phrase, item.translation);
+                        }}
+                      />
+                    );
+                  })
                 ) : (
                   <div className="text-center text-gray-400 py-8">
                     {isAnalyzing ? (
@@ -922,8 +977,14 @@ export default function LearnPage() {
               {aiDialogueMessages.length > 0 ? (
               <DialogueCard 
                   messages={aiDialogueMessages}
-                onStarMessage={toggleStarMessage}
-                starredMessages={starredMessages}
+                onStarMessage={(messageId, e) => {
+                  e.stopPropagation();
+                  const message = aiDialogueMessages.find(msg => msg.id === messageId);
+                  if (message) {
+                    handleDialogueStar(messageId, message.message, message.character);
+                  }
+                }}
+                starredMessages={starredDialogues}
               />
               ) : (
                 <div className="text-center text-gray-400 py-8">

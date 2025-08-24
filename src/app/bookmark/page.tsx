@@ -7,11 +7,11 @@ import { DialogueCard } from '@/components/DialogueCard';
 
 export default function BookmarkPage() {
   const [selectedTab, setSelectedTab] = useState('Voca');
-  const [starredWords, setStarredWords] = useState<string[]>([]);
+  const [starredVocas, setStarredVocas] = useState<string[]>([]);
   const [starredPhrases, setStarredPhrases] = useState<string[]>([]);
-  const [starredMessages, setStarredMessages] = useState<string[]>([]);
-  const [flippedWords, setFlippedWords] = useState<string[]>([]);
-  const [flippedPhrases, setFlippedPhrases] = useState<string[]>([]);
+  const [starredDialogues, setStarredDialogues] = useState<string[]>([]);
+  const [flippedVocas, setFlippedVocas] = useState<{ [key: string]: boolean }>({});
+  const [flippedPhrases, setFlippedPhrases] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
     // Enable scrolling on this page (override global overflow: hidden)
@@ -24,18 +24,18 @@ export default function BookmarkPage() {
     // Load starred items from localStorage
     const loadBookmarks = () => {
       try {
-        const savedStarredWords = localStorage.getItem('starredWords');
+        const savedStarredVocas = localStorage.getItem('starredVocas');
         const savedStarredPhrases = localStorage.getItem('starredPhrases');
-        const savedStarredMessages = localStorage.getItem('starredMessages');
+        const savedStarredDialogues = localStorage.getItem('starredDialogues');
         
-        if (savedStarredWords) {
-          setStarredWords(JSON.parse(savedStarredWords));
+        if (savedStarredVocas) {
+          setStarredVocas(JSON.parse(savedStarredVocas));
         }
         if (savedStarredPhrases) {
           setStarredPhrases(JSON.parse(savedStarredPhrases));
         }
-        if (savedStarredMessages) {
-          setStarredMessages(JSON.parse(savedStarredMessages));
+        if (savedStarredDialogues) {
+          setStarredDialogues(JSON.parse(savedStarredDialogues));
         }
       } catch (error) {
         console.error('Failed to load bookmarks:', error);
@@ -53,94 +53,65 @@ export default function BookmarkPage() {
 
   const tabs = ['Voca', 'Pharase', 'Dialogue'];
   
-  // All available vocabulary words with meanings
-  const allVocaWords = [
-    { word: 'lamp', meaning: '램프' },
-    { word: '노트북', meaning: 'laptop' },
-    { word: 'tote bag', meaning: '토트백' },
-    { word: 'hoodie', meaning: '후드티' },
-    { word: 'projector', meaning: '프로젝터' },
-    { word: 'keyboard', meaning: '키보드' },
-    { word: 'monitor', meaning: '모니터' },
-    { word: 'speaker', meaning: '스피커' },
-    { word: 'headphones', meaning: '헤드폰' },
-    { word: 'mouse', meaning: '마우스' },
-    { word: 'tablet', meaning: '태블릿' },
-    { word: 'smartphone', meaning: '스마트폰' },
-    { word: 'charger', meaning: '충전기' },
-    { word: 'cable', meaning: '케이블' },
-    { word: 'adapter', meaning: '어댑터' },
-    { word: 'router', meaning: '라우터' },
-    { word: 'webcam', meaning: '웹캠' },
-    { word: 'microphone', meaning: '마이크' }
-  ];
-
-  // All available phrases
-  const allPhrases = [
-    { id: 'phrase1', phrase: "There's an outlet under the table.", translation: "테이블 아래에 콘센트가 있어요.", isDark: false },
-    { id: 'phrase2', phrase: "멀티탭 같이 써도 될까요?", translation: "Can we share the power strip?", isDark: true },
-    { id: 'phrase3', phrase: "I'll be back in five.", translation: "5분 후에 돌아올게요.", isDark: false },
-    { id: 'phrase4', phrase: "What's the Wi-Fi and password?", translation: "와이파이와 비밀번호가 뭐예요?", isDark: false },
-    { id: 'phrase5', phrase: "Let's sync for five minutes.", translation: "5분간 싱크를 맞춰봐요.", isDark: false },
-    { id: 'phrase6', phrase: "We have 10 minutes to demo", translation: "데모할 시간이 10분 있어요.", isDark: false }
-  ];
-
-  // All available dialogue messages
-  const allDialogueMessages = [
-    { id: 'msg1', message: "I'm getting a 401 from the API. Can you sanity-check my headers?", character: 'left' as const, characterImage: '/cha1.svg' },
-    { id: 'msg2', message: '"Sure. Did you include the bearer token?"', character: 'right' as const, characterImage: '/cha2.svg' },
-    { id: 'msg3', message: "I missed it. Adding now—works!", character: 'left' as const, characterImage: '/cha1.svg' }
-  ];
-
-  // Filter only starred items
-  const starredVocaWords = allVocaWords.filter(item => starredWords.includes(item.word));
-  const starredPhraseItems = allPhrases.filter(item => starredPhrases.includes(item.phrase));
-  const starredDialogueMessages = allDialogueMessages.filter(item => starredMessages.includes(item.id));
-
-  const toggleStar = (word: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const newStarredWords = starredWords.includes(word) 
-      ? starredWords.filter(w => w !== word)
-      : [...starredWords, word];
-    
-    setStarredWords(newStarredWords);
-    localStorage.setItem('starredWords', JSON.stringify(newStarredWords));
+  // Parse bookmarked items from localStorage
+  const parseVocaItems = () => {
+    return starredVocas.map(vocaKey => {
+      const [word, meaning] = vocaKey.split('|');
+      return { word, meaning };
+    });
   };
 
-  const togglePhraseStar = (phrase: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const newStarredPhrases = starredPhrases.includes(phrase) 
-      ? starredPhrases.filter(p => p !== phrase)
-      : [...starredPhrases, phrase];
+  const parsePhraseItems = () => {
+    return starredPhrases.map(phraseKey => {
+      const [id, phrase, translation] = phraseKey.split('|');
+      return { id, phrase, translation, isDark: false };
+    });
+  };
+
+  const parseDialogueItems = () => {
+    return starredDialogues.map(dialogueKey => {
+      const [id, message, character] = dialogueKey.split('|');
+      return { 
+        id, 
+        message, 
+        character: character as 'left' | 'right', 
+        characterImage: character === 'left' ? '/cha1.svg' : '/cha2.svg' 
+      };
+    });
+  };
+
+  const starredVocaWords = parseVocaItems();
+  const starredPhraseItems = parsePhraseItems();
+  const starredDialogueMessages = parseDialogueItems();
+
+  const handleVocaStar = (word: string, meaning: string) => {
+    const vocaKey = `${word}|${meaning}`;
+    const newStarredVocas = starredVocas.includes(vocaKey)
+      ? starredVocas.filter(item => item !== vocaKey)
+      : [...starredVocas, vocaKey];
+    
+    setStarredVocas(newStarredVocas);
+    localStorage.setItem('starredVocas', JSON.stringify(newStarredVocas));
+  };
+
+  const handlePhraseStar = (id: string, phrase: string, translation: string) => {
+    const phraseKey = `${id}|${phrase}|${translation}`;
+    const newStarredPhrases = starredPhrases.includes(phraseKey)
+      ? starredPhrases.filter(item => item !== phraseKey)
+      : [...starredPhrases, phraseKey];
     
     setStarredPhrases(newStarredPhrases);
     localStorage.setItem('starredPhrases', JSON.stringify(newStarredPhrases));
   };
 
-  const togglePhraseFlip = (phrase: string) => {
-    setFlippedPhrases(prev => 
-      prev.includes(phrase) 
-        ? prev.filter(p => p !== phrase)
-        : [...prev, phrase]
-    );
-  };
-
-  const toggleStarMessage = (messageId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const newStarredMessages = starredMessages.includes(messageId) 
-      ? starredMessages.filter(id => id !== messageId)
-      : [...starredMessages, messageId];
+  const handleDialogueStar = (messageId: string, message: string, character: 'left' | 'right') => {
+    const dialogueKey = `${messageId}|${message}|${character}`;
+    const newStarredDialogues = starredDialogues.includes(dialogueKey)
+      ? starredDialogues.filter(item => item !== dialogueKey)
+      : [...starredDialogues, dialogueKey];
     
-    setStarredMessages(newStarredMessages);
-    localStorage.setItem('starredMessages', JSON.stringify(newStarredMessages));
-  };
-
-  const toggleWordFlip = (word: string) => {
-    setFlippedWords(prev => 
-      prev.includes(word) 
-        ? prev.filter(w => w !== word)
-        : [...prev, word]
-    );
+    setStarredDialogues(newStarredDialogues);
+    localStorage.setItem('starredDialogues', JSON.stringify(newStarredDialogues));
   };
 
   return (
@@ -194,17 +165,28 @@ export default function BookmarkPage() {
 
             {starredVocaWords.length > 0 ? (
               <div className="grid grid-cols-2 gap-2">
-                {starredVocaWords.map((item, index) => (
-                  <VocaCard
-                    key={`${item.word}-${index}`}
-                    word={item.word}
-                    meaning={item.meaning}
-                    isFlipped={flippedWords.includes(item.word)}
-                    isStarred={starredWords.includes(item.word)}
-                    onFlip={() => toggleWordFlip(item.word)}
-                    onStar={(e) => toggleStar(item.word, e)}
-                  />
-                ))}
+                {starredVocaWords.map((item, index) => {
+                  const vocaKey = `${item.word}|${item.meaning}`;
+                  return (
+                    <VocaCard
+                      key={`${item.word}-${index}`}
+                      word={item.word}
+                      meaning={item.meaning}
+                      isFlipped={flippedVocas[vocaKey] || false}
+                      isStarred={starredVocas.includes(vocaKey)}
+                      onFlip={() => {
+                        setFlippedVocas(prev => ({
+                          ...prev,
+                          [vocaKey]: !prev[vocaKey]
+                        }));
+                      }}
+                      onStar={(e) => {
+                        e.stopPropagation();
+                        handleVocaStar(item.word, item.meaning);
+                      }}
+                    />
+                  );
+                })}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -236,18 +218,29 @@ export default function BookmarkPage() {
 
             {starredPhraseItems.length > 0 ? (
               <div className="flex flex-col gap-2">
-                {starredPhraseItems.map((item) => (
-                  <PhraseCard
-                    key={item.id}
-                    phrase={item.phrase}
-                    translation={item.translation}
-                    isFlipped={flippedPhrases.includes(item.phrase)}
-                    isStarred={starredPhrases.includes(item.phrase)}
-                    isDark={item.isDark}
-                    onFlip={() => togglePhraseFlip(item.phrase)}
-                    onStar={(e) => togglePhraseStar(item.phrase, e)}
-                  />
-                ))}
+                {starredPhraseItems.map((item) => {
+                  const phraseKey = `${item.id}|${item.phrase}|${item.translation}`;
+                  return (
+                    <PhraseCard
+                      key={item.id}
+                      phrase={item.phrase}
+                      translation={item.translation}
+                      isFlipped={flippedPhrases[phraseKey] || false}
+                      isStarred={starredPhrases.includes(phraseKey)}
+                      isDark={item.isDark}
+                      onFlip={() => {
+                        setFlippedPhrases(prev => ({
+                          ...prev,
+                          [phraseKey]: !prev[phraseKey]
+                        }));
+                      }}
+                      onStar={(e) => {
+                        e.stopPropagation();
+                        handlePhraseStar(item.id, item.phrase, item.translation);
+                      }}
+                    />
+                  );
+                })}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -280,8 +273,14 @@ export default function BookmarkPage() {
             {starredDialogueMessages.length > 0 ? (
               <DialogueCard 
                 messages={starredDialogueMessages}
-                onStarMessage={toggleStarMessage}
-                starredMessages={starredMessages}
+                onStarMessage={(messageId, e) => {
+                  e.stopPropagation();
+                  const message = starredDialogueMessages.find(msg => msg.id === messageId);
+                  if (message) {
+                    handleDialogueStar(messageId, message.message, message.character);
+                  }
+                }}
+                starredMessages={starredDialogues}
               />
             ) : (
               <div className="flex flex-col items-center justify-center py-12 text-center">

@@ -22,7 +22,8 @@ export const DialogueCard: React.FC<DialogueCardProps> = ({
   return (
     <div className="flex flex-col gap-4 pb-8">
       {messages.map((msg) => {
-        const isStarred = starredMessages.includes(msg.id);
+        const dialogueKey = `${msg.id}|${msg.message}|${msg.character}`;
+        const isStarred = starredMessages.includes(dialogueKey);
         
         if (msg.character === 'left') {
           return (

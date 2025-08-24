@@ -18,21 +18,21 @@ export default function Home() {
   // Generate all dates from 1 to 31
   const allDates = Array.from({ length: 31 }, (_, i) => i + 1); // 1-31
   
-  // Using actual image URLs from public folder to match the Figma design
+  // Using images from public/images folder
   const photos = [
     {
       id: 1,
-      image: '/6eeefb626d236d950bb73fdc6e99fcd267aee37b.png',
+      image: '/images/0967AFC1-E508-4440-8D59-85B330513AA3_1_201_a.jpeg',
       rotation: '-rotate-3'
     },
     {
       id: 2,
-      image: '/8b3065bd083fb8ac6ae82ceab5042a0d2c23443e.png',
+      image: '/images/20FB92ED-78B8-4267-BA93-556CA668B68A_4_5005_c.jpeg',
       rotation: 'rotate-3'
     },
     {
       id: 3,
-      image: '/6eeefb626d236d950bb73fdc6e99fcd267aee37b.png',
+      image: '/images/214CD494-D715-464D-B34A-4DE3FC2C21D7_1_201_a.jpeg',
       rotation: 'rotate-3'
     }
   ];
