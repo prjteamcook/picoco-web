@@ -189,7 +189,27 @@ export default function Home() {
         
         // Store base64 data (only if imageData was successfully set)
         if (imageData) {
-          console.log('📱 Storing base64 data, size:', imageData.length);
+          console.log('📱 Processing base64 data, size:', imageData.length);
+          
+          // Try to navigate to learn page first and send image directly
+          const pendingSessionId = localStorage.getItem('pendingImageSession');
+          if (pendingSessionId) {
+            console.log('📱 Sending image directly to learn page');
+            const learnUrl = `/learn?session=${pendingSessionId}`;
+            console.log('📱 Navigating to:', learnUrl);
+            window.location.href = learnUrl;
+            
+            // Send the image data to the learn page after a short delay
+            setTimeout(() => {
+              const learnWindow = window.frames[0] || window;
+              learnWindow.postMessage(imageData, window.location.origin);
+              console.log('📱 Posted message to learn page:', imageData.substring(0, 100));
+            }, 500);
+            return;
+          }
+          
+          // Fallback: Store in API
+          console.log('📱 Storing base64 data in API, size:', imageData.length);
           const uploadResponse = await fetch('/api/image', {
             method: 'POST',
             headers: {

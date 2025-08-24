@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { VocaCard } from '@/components/VocaCard';
+import { PhraseCard } from '@/components/PhraseCard';
+import { DialogueCard } from '@/components/DialogueCard';
 
 export default function LearnPage() {
   const [selectedTab, setSelectedTab] = useState('Voca');
@@ -12,6 +15,7 @@ export default function LearnPage() {
   const [currentTranslateY, setCurrentTranslateY] = useState(0);
   const [starredWords, setStarredWords] = useState<string[]>([]);
   const [starredPhrases, setStarredPhrases] = useState<string[]>([]);
+  const [starredMessages, setStarredMessages] = useState<string[]>([]);
   const [flippedWords, setFlippedWords] = useState<string[]>([]);
   const [flippedPhrases, setFlippedPhrases] = useState<string[]>([]);
   const [backgroundImage, setBackgroundImage] = useState('');
@@ -22,6 +26,36 @@ export default function LearnPage() {
   // Load uploaded image from server session or fallback storage
   useEffect(() => {
     setIsClient(true);
+    
+    // Listen for messages from RN directly on learn page
+    const handleMessage = async (event: MessageEvent) => {
+      if (!event.data || typeof event.data !== 'string') return;
+      
+      console.log('📱 Learn page received message from RN:', {
+        type: typeof event.data,
+        length: event.data.length,
+        preview: event.data.substring(0, 100)
+      });
+      
+      // Check if it's a base64 image
+      let imageData = '';
+      if (event.data.startsWith('data:image/')) {
+        imageData = event.data;
+      } else if (event.data.length > 100 && /^[A-Za-z0-9+/=]*$/.test(event.data)) {
+        imageData = `data:image/jpeg;base64,${event.data}`;
+      }
+      
+      if (imageData) {
+        console.log('📱 Setting image directly from RN message');
+        setBackgroundImage(imageData);
+        setIsLoadingImage(false);
+        
+        // Clear pending session
+        localStorage.removeItem('pendingImageSession');
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
     
     const loadImage = async () => {
       // Method 1: Check for session ID in URL parameters
@@ -35,6 +69,12 @@ export default function LearnPage() {
       if (pendingSession === sessionId) {
         console.log('🔍 Debug: This is a pending image session, showing loading state');
         setIsLoadingImage(true);
+        
+        // Auto-clear loading state after 30 seconds
+        setTimeout(() => {
+          setIsLoadingImage(false);
+          console.log('📱 Loading state auto-cleared after 30 seconds');
+        }, 30000);
       }
       
       if (sessionId) {
@@ -131,6 +171,11 @@ export default function LearnPage() {
     };
     
     loadImage();
+    
+    // Cleanup function
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
   }, []);
 
   
@@ -142,6 +187,21 @@ export default function LearnPage() {
     { word: 'tote bag', meaning: '토트백' },
     { word: 'hoodie', meaning: '후드티' },
     { word: 'projector', meaning: '프로젝터' }
+  ];
+
+  const phrases = [
+    { id: 'phrase1', phrase: "There's an outlet under the table.", translation: "테이블 아래에 콘센트가 있어요.", isDark: false },
+    { id: 'phrase2', phrase: "멀티탭 같이 써도 될까요?", translation: "Can we share the power strip?", isDark: true },
+    { id: 'phrase3', phrase: "I'll be back in five.", translation: "5분 후에 돌아올게요.", isDark: false },
+    { id: 'phrase4', phrase: "What's the Wi-Fi and password?", translation: "와이파이와 비밀번호가 뭐예요?", isDark: false },
+    { id: 'phrase5', phrase: "Let's sync for five minutes.", translation: "5분간 싱크를 맞춰봐요.", isDark: false },
+    { id: 'phrase6', phrase: "We have 10 minutes to demo", translation: "데모할 시간이 10분 있어요.", isDark: false }
+  ];
+
+  const dialogueMessages = [
+    { id: 'msg1', message: "I'm getting a 401 from the API. Can you sanity-check my headers?", character: 'left' as const, characterImage: '/cha1.svg' },
+    { id: 'msg2', message: '"Sure. Did you include the bearer token?"', character: 'right' as const, characterImage: '/cha2.svg' },
+    { id: 'msg3', message: "I missed it. Adding now—works!", character: 'left' as const, characterImage: '/cha1.svg' }
   ];
 
   const toggleStar = (word: string, e: React.MouseEvent) => {
@@ -175,6 +235,15 @@ export default function LearnPage() {
       prev.includes(phrase) 
         ? prev.filter(p => p !== phrase)
         : [...prev, phrase]
+    );
+  };
+
+  const toggleStarMessage = (messageId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setStarredMessages(prev => 
+      prev.includes(messageId) 
+        ? prev.filter(id => id !== messageId)
+        : [...prev, messageId]
     );
   };
 
@@ -289,7 +358,17 @@ export default function LearnPage() {
                   className="w-16 h-16 mb-4"
                 />
                 <div className="text-xl mb-2">이미지를 처리 중입니다</div>
-                <div className="text-sm text-gray-300">잠시만 기다려주세요...</div>
+                <div className="text-sm text-gray-300 mb-4">잠시만 기다려주세요...</div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsLoadingImage(false);
+                    console.log('📱 Loading state manually cleared');
+                  }}
+                  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm"
+                >
+                  로딩 중단
+                </button>
               </>
             ) : (
               <>
@@ -425,40 +504,15 @@ export default function LearnPage() {
               {/* Vocabulary Grid */}
               <div className="grid grid-cols-2 gap-3 pb-8">
                 {vocaWords.map((item, index) => (
-                  <button
+                  <VocaCard
                     key={`${item.word}-${index}`}
-                    type="button"
-                    onClick={() => toggleWordFlip(item.word)}
-                    className={`h-16 p-5 rounded-xl inline-flex justify-start items-center gap-1 transition-all duration-500 transform-gpu ${
-                      flippedWords.includes(item.word) ? 'rotateY-180' : ''
-                    }`}
-                    style={{
-                      backgroundColor: flippedWords.includes(item.word) ? '#1F1F21' : '#FAFAFA',
-                      transformStyle: 'preserve-3d',
-                      transform: flippedWords.includes(item.word) ? 'rotateY(180deg)' : 'rotateY(0deg)'
-                    }}
-                  >
-                    <div className="flex-1 text-left text-base font-medium font-['SUIT'] leading-normal"
-                         style={{
-                           backfaceVisibility: 'hidden',
-                           transform: flippedWords.includes(item.word) ? 'rotateY(180deg)' : 'rotateY(0deg)',
-                           color: flippedWords.includes(item.word) ? '#F4F4F4' : '#000000'
-                         }}>
-                      {flippedWords.includes(item.word) ? item.meaning : item.word}
-                    </div>
-                    
-                    {/* Star Icon */}
-                    <div
-                      onClick={(e) => toggleStar(item.word, e)}
-                      className="w-6 h-6 cursor-pointer"
-                    >
-                      <img 
-                        src={starredWords.includes(item.word) ? "/assets/star.svg" : "/assets/non-star.svg"}
-                        alt={starredWords.includes(item.word) ? "Starred" : "Not starred"}
-                        className="w-6 h-6"
-                      />
-                    </div>
-                  </button>
+                    word={item.word}
+                    meaning={item.meaning}
+                    isFlipped={flippedWords.includes(item.word)}
+                    isStarred={starredWords.includes(item.word)}
+                    onFlip={() => toggleWordFlip(item.word)}
+                    onStar={(e) => toggleStar(item.word, e)}
+                  />
                 ))}
               </div>
             </div>
@@ -478,161 +532,18 @@ export default function LearnPage() {
 
               {/* Phrase Cards */}
               <div className="flex flex-col gap-2 pb-8">
-                <button 
-                  type="button"
-                  onClick={() => togglePhraseFlip("There's an outlet under the table.")}
-                  className="flex items-center justify-start gap-1 p-5 rounded-xl w-full text-left transition-all duration-500"
-                  style={{
-                    backgroundColor: flippedPhrases.includes("There's an outlet under the table.") ? '#1F1F21' : '#f5f5f5',
-                    transformStyle: 'preserve-3d',
-                    transform: flippedPhrases.includes("There's an outlet under the table.") ? 'rotateY(180deg)' : 'rotateY(0deg)'
-                  }}
-                >
-                  <div className="flex-1 text-base font-medium"
-                       style={{
-                         backfaceVisibility: 'hidden',
-                         transform: flippedPhrases.includes("There's an outlet under the table.") ? 'rotateY(180deg)' : 'rotateY(0deg)',
-                         color: flippedPhrases.includes("There's an outlet under the table.") ? '#F4F4F4' : '#292a2e'
-                       }}>
-                    {flippedPhrases.includes("There's an outlet under the table.") ? "테이블 아래에 콘센트가 있어요." : "There's an outlet under the table."}
-                  </div>
-                  <img 
-                    src={starredPhrases.includes("There's an outlet under the table.") ? "/assets/star.svg" : "/assets/non-star.svg"}
-                    alt="Star" 
-                    className="w-6 h-6"
-                    onClick={(e) => togglePhraseStar("There's an outlet under the table.", e)}
+                {phrases.map((item) => (
+                  <PhraseCard
+                    key={item.id}
+                    phrase={item.phrase}
+                    translation={item.translation}
+                    isFlipped={flippedPhrases.includes(item.phrase)}
+                    isStarred={starredPhrases.includes(item.phrase)}
+                    isDark={item.isDark}
+                    onFlip={() => togglePhraseFlip(item.phrase)}
+                    onStar={(e) => togglePhraseStar(item.phrase, e)}
                   />
-                </button>
-
-                <button 
-                  type="button"
-                  onClick={() => togglePhraseFlip("멀티탭 같이 써도 될까요?")}
-                  className="flex items-center justify-start gap-1 p-5 rounded-xl w-full text-left transition-all duration-500"
-                  style={{
-                    backgroundColor: flippedPhrases.includes("멀티탭 같이 써도 될까요?") ? '#1F1F21' : '#1f1f21',
-                    transformStyle: 'preserve-3d',
-                    transform: flippedPhrases.includes("멀티탭 같이 써도 될까요?") ? 'rotateY(180deg)' : 'rotateY(0deg)'
-                  }}
-                >
-                  <div className="flex-1 text-base font-medium"
-                       style={{
-                         backfaceVisibility: 'hidden',
-                         transform: flippedPhrases.includes("멀티탭 같이 써도 될까요?") ? 'rotateY(180deg)' : 'rotateY(0deg)',
-                         color: flippedPhrases.includes("멀티탭 같이 써도 될까요?") ? '#F4F4F4' : 'rgba(244,244,245,0.6)'
-                       }}>
-                    {flippedPhrases.includes("멀티탭 같이 써도 될까요?") ? "Can we share the power strip?" : "멀티탭 같이 써도 될까요?"}
-                  </div>
-                  <img 
-                    src={starredPhrases.includes("멀티탭 같이 써도 될까요?") ? "/assets/star.svg" : "/assets/non-star.svg"}
-                    alt="Star" 
-                    className="w-6 h-6"
-                    onClick={(e) => togglePhraseStar("멀티탭 같이 써도 될까요?", e)}
-                  />
-                </button>
-
-                <button 
-                  type="button"
-                  onClick={() => togglePhraseFlip("I'll be back in five.")}
-                  className="flex items-center justify-start gap-1 p-5 rounded-xl w-full text-left transition-all duration-500"
-                  style={{
-                    backgroundColor: flippedPhrases.includes("I'll be back in five.") ? '#1F1F21' : '#f5f5f5',
-                    transformStyle: 'preserve-3d',
-                    transform: flippedPhrases.includes("I'll be back in five.") ? 'rotateY(180deg)' : 'rotateY(0deg)'
-                  }}
-                >
-                  <div className="flex-1 text-base font-medium"
-                       style={{
-                         backfaceVisibility: 'hidden',
-                         transform: flippedPhrases.includes("I'll be back in five.") ? 'rotateY(180deg)' : 'rotateY(0deg)',
-                         color: flippedPhrases.includes("I'll be back in five.") ? '#F4F4F4' : '#292a2e'
-                       }}>
-                    {flippedPhrases.includes("I'll be back in five.") ? "5분 후에 돌아올게요." : "I'll be back in five."}
-                  </div>
-                  <img 
-                    src={starredPhrases.includes("I'll be back in five.") ? "/assets/star.svg" : "/assets/non-star.svg"}
-                    alt="Star" 
-                    className="w-6 h-6"
-                    onClick={(e) => togglePhraseStar("I'll be back in five.", e)}
-                  />
-                </button>
-
-                <button 
-                  type="button"
-                  onClick={() => togglePhraseFlip("What's the Wi-Fi and password?")}
-                  className="flex items-center justify-start gap-1 p-5 rounded-xl w-full text-left transition-all duration-500"
-                  style={{
-                    backgroundColor: flippedPhrases.includes("What's the Wi-Fi and password?") ? '#1F1F21' : '#f5f5f5',
-                    transformStyle: 'preserve-3d',
-                    transform: flippedPhrases.includes("What's the Wi-Fi and password?") ? 'rotateY(180deg)' : 'rotateY(0deg)'
-                  }}
-                >
-                  <div className="flex-1 text-base font-medium"
-                       style={{
-                         backfaceVisibility: 'hidden',
-                         transform: flippedPhrases.includes("What's the Wi-Fi and password?") ? 'rotateY(180deg)' : 'rotateY(0deg)',
-                         color: flippedPhrases.includes("What's the Wi-Fi and password?") ? '#F4F4F4' : '#292a2e'
-                       }}>
-                    {flippedPhrases.includes("What's the Wi-Fi and password?") ? "와이파이와 비밀번호가 뭐예요?" : "What's the Wi-Fi and password?"}
-                  </div>
-                  <img 
-                    src={starredPhrases.includes("What's the Wi-Fi and password?") ? "/assets/star.svg" : "/assets/non-star.svg"}
-                    alt="Star" 
-                    className="w-6 h-6"
-                    onClick={(e) => togglePhraseStar("What's the Wi-Fi and password?", e)}
-                  />
-                </button>
-
-                <button 
-                  type="button"
-                  onClick={() => togglePhraseFlip("Let's sync for five minutes.")}
-                  className="flex items-center justify-start gap-1 p-5 rounded-xl w-full text-left transition-all duration-500"
-                  style={{
-                    backgroundColor: flippedPhrases.includes("Let's sync for five minutes.") ? '#1F1F21' : '#f5f5f5',
-                    transformStyle: 'preserve-3d',
-                    transform: flippedPhrases.includes("Let's sync for five minutes.") ? 'rotateY(180deg)' : 'rotateY(0deg)'
-                  }}
-                >
-                  <div className="flex-1 text-base font-medium"
-                       style={{
-                         backfaceVisibility: 'hidden',
-                         transform: flippedPhrases.includes("Let's sync for five minutes.") ? 'rotateY(180deg)' : 'rotateY(0deg)',
-                         color: flippedPhrases.includes("Let's sync for five minutes.") ? '#F4F4F4' : '#292a2e'
-                       }}>
-                    {flippedPhrases.includes("Let's sync for five minutes.") ? "5분간 싱크를 맞춰봐요." : "Let's sync for five minutes."}
-                  </div>
-                  <img 
-                    src={starredPhrases.includes("Let's sync for five minutes.") ? "/assets/star.svg" : "/assets/non-star.svg"}
-                    alt="Star" 
-                    className="w-6 h-6"
-                    onClick={(e) => togglePhraseStar("Let's sync for five minutes.", e)}
-                  />
-                </button>
-
-                <button 
-                  type="button"
-                  onClick={() => togglePhraseFlip("We have 10 minutes to demo")}
-                  className="flex items-center justify-start gap-1 p-5 rounded-xl w-full text-left transition-all duration-500"
-                  style={{
-                    backgroundColor: flippedPhrases.includes("We have 10 minutes to demo") ? '#1F1F21' : '#f5f5f5',
-                    transformStyle: 'preserve-3d',
-                    transform: flippedPhrases.includes("We have 10 minutes to demo") ? 'rotateY(180deg)' : 'rotateY(0deg)'
-                  }}
-                >
-                  <div className="flex-1 text-base font-medium"
-                       style={{
-                         backfaceVisibility: 'hidden',
-                         transform: flippedPhrases.includes("We have 10 minutes to demo") ? 'rotateY(180deg)' : 'rotateY(0deg)',
-                         color: flippedPhrases.includes("We have 10 minutes to demo") ? '#F4F4F4' : '#292a2e'
-                       }}>
-                    {flippedPhrases.includes("We have 10 minutes to demo") ? "데모할 시간이 10분 있어요." : "We have 10 minutes to demo"}
-                  </div>
-                  <img 
-                    src={starredPhrases.includes("We have 10 minutes to demo") ? "/assets/star.svg" : "/assets/non-star.svg"}
-                    alt="Star" 
-                    className="w-6 h-6"
-                    onClick={(e) => togglePhraseStar("We have 10 minutes to demo", e)}
-                  />
-                </button>
+                ))}
               </div>
             </div>
           )}
@@ -649,71 +560,11 @@ export default function LearnPage() {
                 />
               </div>
 
-              {/* Dialogue Messages */}
-              <div className="flex flex-col gap-4 pb-8">
-                {/* First message - left side */}
-                <div className="flex gap-2 items-start w-full">
-                  <div className="flex flex-col gap-2 items-start">
-                    <img 
-                      src="/cha1.svg" 
-                      alt="Character 1" 
-                      className="w-[31px] h-[31px]"
-                    />
-                    <img 
-                      src="/assets/non-star.svg" 
-                      alt="Star" 
-                      className="w-4 h-4"
-                    />
-                  </div>
-                  <div className="bg-neutral-50 px-5 py-2 rounded-bl-[32px] rounded-br-[32px] rounded-tr-[32px] max-w-[271px]">
-                    <p className="text-[#292a2e] text-base font-medium leading-6">
-                      I'm getting a 401 from the API. Can you sanity-check my headers?
-                    </p>
-                  </div>
-                </div>
-
-                {/* Second message - right side */}
-                <div className="flex gap-2 items-start justify-end w-full">
-                  <div className="bg-[#303033] px-5 py-2 rounded-bl-[32px] rounded-br-[32px] rounded-tl-[32px] max-w-[282px]">
-                    <p className="text-[rgba(244,244,245,0.6)] text-base font-medium leading-6 text-right">
-                      "Sure. Did you include the bearer token?"
-                    </p>
-                  </div>
-                  <div className="flex flex-col gap-2 items-end">
-                    <img 
-                      src="/cha2.svg" 
-                      alt="Character 2" 
-                      className="w-[20px] h-[32px]"
-                    />
-                    <img 
-                      src="/assets/non-star.svg" 
-                      alt="Star" 
-                      className="w-4 h-4"
-                    />
-                  </div>
-                </div>
-
-                {/* Third message - left side */}
-                <div className="flex gap-2 items-start w-full">
-                  <div className="flex flex-col gap-2 items-start">
-                    <img 
-                      src="/cha1.svg" 
-                      alt="Character 1" 
-                      className="w-[31px] h-[31px]"
-                    />
-                    <img 
-                      src="/assets/non-star.svg" 
-                      alt="Star" 
-                      className="w-4 h-4"
-                    />
-                  </div>
-                  <div className="bg-neutral-50 px-5 py-2 rounded-bl-[32px] rounded-br-[32px] rounded-tr-[32px]">
-                    <p className="text-[#292a2e] text-base font-medium leading-6 text-center whitespace-nowrap">
-                      I missed it. Adding now—works!
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <DialogueCard 
+                messages={dialogueMessages}
+                onStarMessage={toggleStarMessage}
+                starredMessages={starredMessages}
+              />
             </div>
           )}
         </div>
