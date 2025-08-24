@@ -1,4 +1,4 @@
-import React from 'react';
+import type React from 'react';
 
 interface DialogueMessage {
   id: string;
@@ -33,12 +33,18 @@ export const DialogueCard: React.FC<DialogueCardProps> = ({
                   alt="Character" 
                   className="w-[31px] h-[31px]"
                 />
-                <img 
-                  src={isStarred ? "/assets/star.svg" : "/assets/non-star.svg"}
-                  alt="Star" 
-                  className="w-4 h-4 cursor-pointer"
+                <button
+                  type="button"
                   onClick={(e) => onStarMessage(msg.id, e)}
-                />
+                  className="w-4 h-4 cursor-pointer bg-transparent border-none p-0"
+                  aria-label={isStarred ? "Remove from favorites" : "Add to favorites"}
+                >
+                  <img 
+                    src={isStarred ? "/assets/star.svg" : "/assets/non-star.svg"}
+                    alt="Star" 
+                    className="w-4 h-4"
+                  />
+                </button>
               </div>
               <div className="bg-neutral-50 px-5 py-2 rounded-bl-[32px] rounded-br-[32px] rounded-tr-[32px] max-w-[271px]">
                 <p className="text-[#292a2e] text-base font-medium leading-6">
@@ -61,12 +67,19 @@ export const DialogueCard: React.FC<DialogueCardProps> = ({
                   alt="Character" 
                   className="w-[20px] h-[32px]"
                 />
-                <img 
-                  src={isStarred ? "/assets/star.svg" : "/assets/non-star.svg"}
-                  alt="Star" 
-                  className="w-4 h-4 cursor-pointer"
+                <button
+                  type="button"
                   onClick={(e) => onStarMessage(msg.id, e)}
-                />
+                  className="w-4 h-4 cursor-pointer bg-transparent border-none p-0"
+                  aria-label={isStarred ? "Remove from favorites" : "Add to favorites"}
+                >
+                  <img 
+                    src={isStarred ? "/assets/star.svg" : "/assets/non-star.svg"}
+                    alt="Star" 
+                    className="w-4 h-4"
+                    style={{ filter: 'brightness(0) saturate(100%) invert(96%) sepia(1%) saturate(526%) hue-rotate(202deg) brightness(99%) contrast(96%)' }}
+                  />
+                </button>
               </div>
             </div>
           );

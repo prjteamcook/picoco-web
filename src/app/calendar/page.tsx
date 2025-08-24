@@ -58,6 +58,13 @@ export default function CalendarPage() {
   };
 
   useEffect(() => {
+    // Enable scrolling on this page (override global overflow: hidden)
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    
+    document.body.style.overflow = 'auto';
+    document.documentElement.style.overflow = 'auto';
+    
     // Scroll to August (month 7) when page loads
     const scrollToAugust = () => {
       const augustElement = document.querySelector('[data-month="7"]');
@@ -71,7 +78,13 @@ export default function CalendarPage() {
 
     // Small delay to ensure DOM is fully rendered
     const timer = setTimeout(scrollToAugust, 100);
-    return () => clearTimeout(timer);
+    
+    // Cleanup: restore original overflow values
+    return () => {
+      clearTimeout(timer);
+      document.body.style.overflow = originalBodyOverflow;
+      document.documentElement.style.overflow = originalHtmlOverflow;
+    };
   }, []);
 
   const renderMonth = (monthIndex: number) => {
@@ -140,7 +153,7 @@ export default function CalendarPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#191919] text-white relative max-w-[600px] mx-auto">
+    <div className="min-h-screen bg-[#191919] text-white relative max-w-[600px] mx-auto" style={{ overflow: 'auto' }}>
       {/* Header - Fixed */}
       <div className="fixed top-0 left-1/2 transform -translate-x-1/2 w-full max-w-[600px] bg-[#191919] z-20 flex items-center justify-between px-5 pt-12 pb-6">
         <a href="/main" className="w-10 h-10 flex items-center justify-center text-white" aria-label="Home">
@@ -154,30 +167,9 @@ export default function CalendarPage() {
         <div className="w-10 h-10"></div>
       </div>
 
-      {/* Photo Grid Preview */}
-      <div className="px-5 my-8 mt-24">
-        <div className="grid grid-cols-4 gap-2">
-          {photoDates.slice(0, 8).map((photo, index) => (
-            <div
-              key={index}
-              className="relative aspect-square rounded-xl overflow-hidden"
-            >
-              <div 
-                className="w-full h-full bg-cover bg-center"
-                style={{
-                  backgroundImage: `url('${photo.image}')`
-                }}
-              />
-              <div className="absolute bottom-1 right-1 text-white text-xs font-semibold bg-black bg-opacity-50 px-1 rounded">
-                {photo.date}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* All Calendar Months - Vertically Stacked */}
-      <div className="pb-8">
+      <div className="pt-24 pb-8">
         {monthNames.slice(0, 8).map((_, monthIndex) => renderMonth(monthIndex))}
       </div>
 

@@ -541,11 +541,16 @@ export default function Home() {
           </button>
         </div>
         
-        {/* Favorite Button - positioned to the right */}
-        <button type="button" className="absolute right-[-120px] w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg" aria-label="Favorites">
+        {/* Bookmark Button - positioned to the right */}
+        <button 
+          type="button" 
+          onClick={() => window.location.href = '/bookmark'}
+          className="absolute right-[-120px] w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg" 
+          aria-label="Bookmarks"
+        >
           <img 
             src="/assets/star.svg" 
-            alt="Star" 
+            alt="Bookmarks" 
             className="w-6 h-6"
           />
         </button>
