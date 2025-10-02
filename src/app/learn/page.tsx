@@ -101,10 +101,10 @@ export default function LearnPage() {
       formData.append('image', blob, 'analyze-image.jpg');
       
       console.log('🤖 Sending POST request to AI API...');
-      console.log('🤖 Request URL: http://3.34.46.159:3000/ai/analyze-image');
+      console.log('🤖 Request URL: https://englife-server-production.up.railway.app/ai/analyze-image');
       console.log('🤖 FormData keys:', Array.from(formData.keys()));
       
-      const response = await fetch('http://3.34.46.159:3000/ai/analyze-image', {
+      const response = await fetch('https://englife-server-production.up.railway.app/ai/analyze-image', {
           method: 'POST',
           body: formData
       });
